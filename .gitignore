@@ -1,0 +1,10 @@
+# build outputs and local state
+build/
+.gradle/
+local.properties
+*.apk
+*.aab
+*.class
+.idea/
+*.iml
+.update_tmp/
