@@ -11,14 +11,17 @@ on:
     workflows: [ "Unpack update.zip" ]
     types: [ completed ]
 
+permissions:
+  contents: write   # lets the report step publish ci-report.txt to the ci-report branch
+
 jobs:
   build:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
@@ -31,12 +34,53 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Unit tests (engines + workspace)
-        run: ./gradlew test --stacktrace
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew test --stacktrace --continue 2>&1 | tee test.log
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee build.log
+
+      - name: Write short error report
+        if: always()
+        run: |
+          {
+            echo "tests=${{ steps.tests.outcome }}  build=${{ steps.build.outcome }}  commit=${GITHUB_SHA::7}"
+            echo
+            echo "=== COMPILE ERRORS (e: lines) ==="
+            cat build.log test.log 2>/dev/null | grep -E '^e: ' | sort -u | head -150
+            echo
+            echo "=== FAILED TASKS / WHAT WENT WRONG ==="
+            cat build.log test.log 2>/dev/null | grep -E -A4 'What went wrong|Execution failed for task' | head -60
+            echo
+            echo "=== FAILED TESTS ==="
+            grep -E 'FAILED|AssertionError' test.log 2>/dev/null | sort -u | head -40
+            echo
+            echo "=== LAST 25 LINES OF BUILD LOG ==="
+            tail -25 build.log 2>/dev/null
+          } > ci-report.txt
+          head -c 60000 ci-report.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish report to branch ci-report
+        if: always()
+        run: |
+          git config user.name  "stitchdraw-bot"
+          git config user.email "stitchdraw-bot@users.noreply.github.com"
+          git checkout --orphan ci-report-tmp
+          git rm -rf . -q
+          git add -f ci-report.txt
+          for f in build.log test.log; do [ -f "$f" ] && git add -f "$f"; done
+          git commit -q -m "CI report for ${GITHUB_SHA::7}"
+          git push -f origin HEAD:refs/heads/ci-report || echo "could not publish report (fork or restricted token)"
 
       - name: Publish APK artifact
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: StitchDraw-debug-apk
@@ -50,3 +94,7 @@ jobs:
           name: test-reports
           path: "**/build/reports/tests/**"
           if-no-files-found: ignore
+
+      - name: Fail the job if tests or build failed
+        if: steps.tests.outcome == 'failure' || steps.build.outcome == 'failure'
+        run: exit 1
