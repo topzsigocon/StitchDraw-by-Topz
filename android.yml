@@ -1,0 +1,52 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+  # Pushes made by unpack.yml use the bot token, which GitHub does not let trigger "push" workflows,
+  # so build explicitly once the unpack workflow has finished.
+  workflow_run:
+    workflows: [ "Unpack update.zip" ]
+    types: [ completed ]
+
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Make wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Unit tests (engines + workspace)
+        run: ./gradlew test --stacktrace
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Publish APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StitchDraw-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Publish test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: "**/build/reports/tests/**"
+          if-no-files-found: ignore
