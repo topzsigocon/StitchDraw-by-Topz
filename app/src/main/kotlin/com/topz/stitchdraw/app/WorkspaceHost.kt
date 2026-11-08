@@ -10,7 +10,9 @@ import android.view.WindowInsets
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
+import android.widget.TextView
 import com.topz.stitchdraw.workspace.DockZone
+import com.topz.stitchdraw.workspace.LayoutStyle
 import com.topz.stitchdraw.workspace.NPoint
 import com.topz.stitchdraw.workspace.PanelId
 import com.topz.stitchdraw.workspace.QuickCommand
@@ -40,6 +42,19 @@ class WorkspaceHost(
         gravity = Gravity.CENTER_VERTICAL
         roundBg(0xEE26262B.toInt(), 28f, Theme.BORDER, 1f)
         elevation = context.dp(10).toFloat()
+    }
+    /** Quick buttons floating over the canvas in the Menu layout: ☰, undo, redo, fit, full screen (user order). */
+    private val menuBar = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        roundBg(0xEE26262B.toInt(), 28f, Theme.BORDER, 1f)
+        elevation = context.dp(10).toFloat()
+    }
+    /** One-line status (stitches, size, objects) drawn over the bottom edge of the canvas on small layouts. */
+    private val statusView = context.label("", 11f, Theme.TEXT_DIM).apply {
+        maxLines = 1
+        setPadding(context.dp(8), context.dp(2), context.dp(8), context.dp(2))
+        roundBg(0xAA0E0E10.toInt(), 8f)
     }
     private val focusButton = context.glyphButton("⛶", Theme.ACCENT, 48f) {}.apply { elevation = context.dp(10).toFloat() }
 
@@ -86,10 +101,14 @@ class WorkspaceHost(
     /** Called by the activity when undo/redo/finish availability changes. */
     fun setQuickEnabled(f: (QuickCommand) -> Boolean) { quickEnabled = f; refreshQuickEnabled() }
 
+    fun setStatus(text: String) { if (statusView.text.toString() != text) statusView.text = text }
+
+    private fun smallLayout(l: WorkspaceLayout) = l.style == LayoutStyle.MENU || l.exclusiveExpand
+
     // ---- state -> views -------------------------------------------------------------------------
 
     private fun key(l: WorkspaceLayout): Any = listOf(
-        l.focusMode, l.iconScale, l.showTopBar, l.quickToolbar,
+        l.focusMode, l.iconScale, l.showTopBar, l.quickToolbar, l.style, l.menuQuick, l.exclusiveExpand,
         l.panels.values.sortedBy { it.id }.map {
             // floating z-order is handled without re-attaching views, so floating `order` is excluded
             listOf(it.id, it.zone, it.open, it.collapsed, if (it.zone == DockZone.FLOATING) -1 else it.order)
@@ -120,7 +139,9 @@ class WorkspaceHost(
                 expanded.forEach { addView(frames.getValue(it.id)) }
                 if (expanded.isNotEmpty()) addView(handles.getValue(z))
             }
+            if (smallLayout(l)) addView(statusView)           // below floating sheets so an open panel covers it
             l.inZone(DockZone.FLOATING).forEach { addView(frames.getValue(it.id)) }
+            if (l.style == LayoutStyle.MENU) { rebuildMenuBar(l); addView(menuBar) }
         } else {
             rebuildQuickBar(l)
             addView(quickBar)
@@ -143,10 +164,29 @@ class WorkspaceHost(
         refreshQuickEnabled()
     }
 
+    private fun rebuildMenuBar(l: WorkspaceLayout) {
+        menuBar.removeAllViews()
+        val size = 44f * l.iconScale
+        val grip = context.glyphButton("⠿", Theme.TEXT_DIM, size) {}
+        grip.background = null
+        menuBar.addView(grip)
+        attachDrag(grip, menuBar, onTap = null) { p -> workspace.dispatch(WorkspaceAction.MoveMenuBar(p)) }
+        for (cmd in l.menuQuick) {
+            val tint = if (cmd == QuickCommand.PANELS_MENU) Theme.WARN else Theme.GLYPH[cmd.ordinal % Theme.GLYPH.size]
+            val b = context.glyphButton(cmd.glyph, tint, size) { onQuickCommand(cmd) }
+            b.tag = cmd
+            b.contentDescription = cmd.label
+            menuBar.addView(b)
+        }
+        refreshQuickEnabled()
+    }
+
     fun refreshQuickEnabled() {
-        for (i in 0 until quickBar.childCount) {
-            val v = quickBar.getChildAt(i)
-            (v.tag as? QuickCommand)?.let { v.alpha = if (quickEnabled(it)) 1f else 0.35f }
+        for (bar in listOf(quickBar, menuBar)) {
+            for (i in 0 until bar.childCount) {
+                val v = bar.getChildAt(i)
+                (v.tag as? QuickCommand)?.let { v.alpha = if (quickEnabled(it)) 1f else 0.35f }
+            }
         }
     }
 
@@ -182,18 +222,25 @@ class WorkspaceHost(
         val (rightP, rightTotal) = zoneInfo(DockZone.RIGHT)
         val (botP, botTotal) = zoneInfo(DockZone.BOTTOM)
         val cy0 = y0 + top
-        val cx0 = x0 + leftTotal; val cx1 = x1 - rightTotal; val cy1 = y1 - botTotal
+        // Small layouts (exclusiveExpand): an expanded panel floats OVER the canvas, so the canvas only gives up the rails.
+        fun share(total: Int) = if (l.exclusiveExpand) minOf(total, railPx) else total
+        val cx0 = x0 + share(leftTotal); val cx1 = x1 - share(rightTotal); val cy1 = y1 - share(botTotal)
+        val sideBottom = if (l.exclusiveExpand && botP.isNotEmpty()) y1 - railPx else y1
         rects[canvas] = Rect(cx0, cy0, cx1, cy1)
+        if (smallLayout(l)) {
+            val sh = context.dp(22)
+            rects[statusView] = Rect(cx0 + context.dp(4), cy1 - sh - context.dp(4), cx1 - context.dp(4), cy1 - context.dp(4))
+        }
 
         // LEFT: rail at the outer edge, content toward the canvas
         if (leftP.isNotEmpty()) {
             rects[rails.getValue(DockZone.LEFT)] = Rect(x0, cy0, x0 + railPx, y1)
-            stack(leftP.filter { !it.collapsed }.map { it.id }, Rect(x0 + railPx, cy0, x0 + leftTotal, y1), vertical = true)
+            stack(leftP.filter { !it.collapsed }.map { it.id }, Rect(x0 + railPx, cy0, x0 + leftTotal, sideBottom), vertical = true)
             if (leftTotal > railPx) rects[handles.getValue(DockZone.LEFT)] = Rect(x0 + leftTotal - context.dp(10), cy0, x0 + leftTotal + context.dp(10), y1)
         }
         if (rightP.isNotEmpty()) {
             rects[rails.getValue(DockZone.RIGHT)] = Rect(x1 - railPx, cy0, x1, y1)
-            stack(rightP.filter { !it.collapsed }.map { it.id }, Rect(x1 - rightTotal, cy0, x1 - railPx, y1), vertical = true)
+            stack(rightP.filter { !it.collapsed }.map { it.id }, Rect(x1 - rightTotal, cy0, x1 - railPx, sideBottom), vertical = true)
             if (rightTotal > railPx) rects[handles.getValue(DockZone.RIGHT)] = Rect(x1 - rightTotal - context.dp(10), cy0, x1 - rightTotal + context.dp(10), y1)
         }
         if (botP.isNotEmpty()) {
@@ -257,6 +304,7 @@ class WorkspaceHost(
             // free-floating controls (focus mode): placed by normalized centre position
             val pos: NPoint = when (c) {
                 quickBar -> lay.quickToolbarPos
+                menuBar -> lay.menuBarPos
                 focusButton -> lay.focusButtonPos
                 else -> NPoint(0.5f, 0.5f)
             }

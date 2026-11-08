@@ -53,6 +53,8 @@ class MainActivity : Activity() {
     private lateinit var simBar: SimulatorBar
     private lateinit var canvas: DesignCanvasView
     private lateinit var host: WorkspaceHost
+    private lateinit var layoutEditor: LayoutEditor
+    private lateinit var menuSheet: MenuSheet
     private val frames = LinkedHashMap<PanelId, PanelFrame>()
     private val contents = HashMap<PanelId, PanelContent>()
     private var topBarState: List<Any> = emptyList()
@@ -65,6 +67,13 @@ class MainActivity : Activity() {
         workspace = WorkspaceController()
         storage = FileWorkspaceStorage(File(filesDir, "workspace/layout.json"))
         try { workspace.restore(storage) } catch (e: Exception) { /* keep default layout */ }
+        // Phones: the old docked "Professional" layout leaves almost no canvas. Once per install (and once more
+        // for installs that predate this setting) switch narrow screens to the Compact layout; the user can change it.
+        val prefs = getSharedPreferences("ui", MODE_PRIVATE)
+        if (!prefs.getBoolean("compact_default_applied", false)) {
+            if (resources.configuration.screenWidthDp < 600) workspace.applyPreset(WorkspacePresets.COMPACT)
+            prefs.edit().putBoolean("compact_default_applied", true).apply()
+        }
 
         projectIO = ProjectIO(this)
         imageImport = ImageImport(this, session, ::toast)
@@ -82,6 +91,8 @@ class MainActivity : Activity() {
             override fun onCanvasMenu(screenX: Int, screenY: Int) = showCanvasMenu(screenX, screenY)
         }
 
+        layoutEditor = LayoutEditor(this, workspace) { /* the workspace listener redraws everything */ }
+        menuSheet = MenuSheet(this, workspace) { layoutEditor.show() }
         val env = StudioEnv(this, session, canvas, ::showToolMenu, ::refreshPanels)
         val frameHost = object : FrameHost {
             override fun floatArea() = host.floatArea()
@@ -127,6 +138,9 @@ class MainActivity : Activity() {
 
     private fun refreshPanels() {
         for ((id, pc) in contents) if (frames.getValue(id).parent != null) pc.refresh()
+        val st = session.plan.stats
+        val b = st.bounds
+        host.setStatus("%,d stitches · %.0f × %.0f mm · %d objects".format(st.stitchCount, b.width, b.height, session.design.objects.size))
         canvas.invalidate()
     }
 
@@ -161,7 +175,10 @@ class MainActivity : Activity() {
         simBar.onClosed = { simBtn.text = "▶ Simulate" }
         row.addView(simBtn); gap()
         row.addView(textButton(if (l.mode == UserMode.BEGINNER) "Mode: Beginner" else "Mode: Pro", Theme.PURPLE) {
-            workspace.applyPreset(if (l.mode == UserMode.BEGINNER) WorkspacePresets.PROFESSIONAL else WorkspacePresets.BEGINNER)
+            val next = if (l.mode == UserMode.BEGINNER) UserMode.PROFESSIONAL else UserMode.BEGINNER
+            // Compact and Menu are phone layouts: only the mode flag changes, the arrangement stays.
+            if (l.name == WorkspacePresets.COMPACT || l.name == WorkspacePresets.MENU) workspace.dispatch(WorkspaceAction.SetMode(next))
+            else workspace.applyPreset(if (next == UserMode.BEGINNER) WorkspacePresets.BEGINNER else WorkspacePresets.PROFESSIONAL)
         }); gap()
         val presets = textButton("Layout: ${l.name} ▾", Theme.ACCENT) {}
         presets.setOnClickListener { showPresetMenu(presets) }
@@ -269,10 +286,12 @@ class MainActivity : Activity() {
         val m = PopupMenu(this, anchor)
         val names = workspace.allPresetNames()
         names.forEachIndexed { i, n -> m.menu.add(0, i, i, (if (n == workspace.layout.name) "✓ " else "") + n) }
+        m.menu.add(1, 999, 999, "⇅ Customize order…")
         m.menu.add(1, 1000, 1000, "💾 Save current layout…")
         if (workspace.savedNames().isNotEmpty()) m.menu.add(1, 1001, 1001, "🗑 Delete saved layout…")
         m.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                999 -> layoutEditor.show()
                 1000 -> promptText(this, "Save workspace layout as", "My layout") { name ->
                     if (!workspace.saveCurrentAs(name)) Toast.makeText(this, "Choose a different name", Toast.LENGTH_SHORT).show()
                     else { try { workspace.save(storage) } catch (e: Exception) {}; buildTopBar() }
@@ -343,7 +362,10 @@ class MainActivity : Activity() {
             QuickCommand.TOOL_RUNNING -> session.selectTool(DigitizingTool.RUNNING)
             QuickCommand.TOOL_TRIPLE -> session.selectTool(DigitizingTool.TRIPLE_RUNNING)
             QuickCommand.EXIT_FOCUS -> workspace.dispatch(WorkspaceAction.SetFocus(false))
-            QuickCommand.PANELS_MENU -> workspace.dispatch(WorkspaceAction.SetFocus(false))
+            QuickCommand.PANELS_MENU ->
+                if (workspace.layout.style == com.topz.stitchdraw.workspace.LayoutStyle.MENU) menuSheet.show()
+                else workspace.dispatch(WorkspaceAction.SetFocus(false))
+            QuickCommand.TOGGLE_FOCUS -> workspace.dispatch(WorkspaceAction.SetFocus(!workspace.layout.focusMode))
         }
     }
 

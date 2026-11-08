@@ -8,7 +8,16 @@ object WorkspaceReducer {
 
     fun reduce(l: WorkspaceLayout, a: WorkspaceAction): WorkspaceLayout = when (a) {
         is WorkspaceAction.SetCollapsed -> setCollapsed(l, a.id, a.collapsed)
-        is WorkspaceAction.ToggleCollapsed -> setCollapsed(l, a.id, !l.panel(a.id).collapsed)
+        is WorkspaceAction.ToggleCollapsed -> {
+            val expanding = l.panel(a.id).collapsed
+            val next = setCollapsed(l, a.id, !l.panel(a.id).collapsed)
+            // small screens: opening one panel of a zone folds the others of the same zone
+            if (expanding && l.exclusiveExpand && next !== l && !l.panel(a.id).pinned) {
+                var cur = next
+                for (o in l.inZone(l.panel(a.id).zone)) if (o.id != a.id) cur = setCollapsed(cur, o.id, true)
+                cur
+            } else next
+        }
         is WorkspaceAction.SetZoneCollapsed -> {
             var cur = l
             if (a.zone != DockZone.FLOATING) {
@@ -53,6 +62,18 @@ object WorkspaceReducer {
         )
         is WorkspaceAction.SetMode -> same(l, l.copy(mode = a.mode))
         is WorkspaceAction.SetStylusOnly -> same(l, l.copy(stylusOnlyDrawing = a.on))
+        is WorkspaceAction.SetStyle -> same(l, l.copy(style = a.style))
+        is WorkspaceAction.OpenExclusive -> {
+            var cur = l
+            for (o in l.panels.values) if (o.id != a.id && o.open && o.zone == DockZone.FLOATING && !o.pinned) cur = update(cur, o.id) { it.copy(open = false, maximized = false) }
+            reduce(cur, WorkspaceAction.Open(a.id))
+        }
+        is WorkspaceAction.SetMenu -> same(l, l.copy(menu = MenuTree.normalize(a.menu)))
+        is WorkspaceAction.MoveMenuPanel -> same(l, l.copy(menu = MenuTree.normalize(MenuTree.movePanel(l.menu, a.id, a.category, a.index))))
+        is WorkspaceAction.MoveMenuCategory -> same(l, l.copy(menu = MenuTree.normalize(MenuTree.moveCategory(l.menu, a.category, a.index))))
+        is WorkspaceAction.MoveMenuBar -> same(l, l.copy(menuBarPos = a.pos.clamped()))
+        is WorkspaceAction.SetMenuQuick -> same(l, l.copy(menuQuick = a.commands.distinct()))
+        WorkspaceAction.ResetMenu -> same(l, l.copy(menu = MenuTree.DEFAULT, menuQuick = WorkspaceLayout.DEFAULT_MENU_QUICK))
         is WorkspaceAction.Replace -> normalize(a.layout)
     }
 
@@ -139,6 +160,8 @@ object WorkspaceReducer {
             },
             focusButtonPos = input.focusButtonPos.clamped(),
             quickToolbarPos = input.quickToolbarPos.clamped(),
+            menuBarPos = input.menuBarPos.clamped(),
+            menu = MenuTree.normalize(input.menu),
         )
         for (z in DockZone.values()) l = renumber(l, z)
         return l

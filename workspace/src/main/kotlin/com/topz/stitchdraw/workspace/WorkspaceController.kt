@@ -48,6 +48,9 @@ class WorkspaceController(initial: WorkspaceLayout = WorkspacePresets.default())
                 target.copy(
                     name = name,
                     quickToolbar = keep.quickToolbar,
+                    // the user's menu order and quick buttons belong to the user, not to a preset
+                    menu = keep.menu,
+                    menuQuick = keep.menuQuick,
                     stylusOnlyDrawing = keep.stylusOnlyDrawing,
                     // Beginner uses larger icons; other built-ins keep the user's chosen icon size.
                     iconScale = if (WorkspacePresets.isBuiltIn(name) && name != WorkspacePresets.BEGINNER) keep.iconScale else target.iconScale

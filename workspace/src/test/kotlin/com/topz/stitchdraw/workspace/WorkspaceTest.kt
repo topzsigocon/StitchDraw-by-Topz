@@ -122,7 +122,7 @@ class WorkspaceTest {
         for (n in WorkspacePresets.builtInNames) {
             val l = WorkspaceReducer.normalize(WorkspacePresets.create(n)!!)
             assertEquals(PanelId.values().size, l.panels.size)
-            assertTrue("$n has at least one open panel", l.panels.values.any { it.open })
+            assertTrue("$n has at least one open panel", l.style == LayoutStyle.MENU || l.panels.values.any { it.open })
             assertContiguous(l)
         }
         assertTrue(WorkspacePresets.create("Full Screen")!!.focusMode)

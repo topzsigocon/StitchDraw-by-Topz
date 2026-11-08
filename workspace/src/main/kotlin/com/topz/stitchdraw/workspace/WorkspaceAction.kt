@@ -38,6 +38,17 @@ sealed interface WorkspaceAction {
     data class SetMode(val mode: UserMode) : WorkspaceAction
     data class SetStylusOnly(val on: Boolean) : WorkspaceAction
 
+    // Menu layout
+    data class SetStyle(val style: LayoutStyle) : WorkspaceAction
+    /** Opens [id] and closes every other panel (one sheet at a time). */
+    data class OpenExclusive(val id: PanelId) : WorkspaceAction
+    data class SetMenu(val menu: List<MenuCategory>) : WorkspaceAction
+    data class MoveMenuPanel(val id: PanelId, val category: String, val index: Int) : WorkspaceAction
+    data class MoveMenuCategory(val category: String, val index: Int) : WorkspaceAction
+    data class MoveMenuBar(val pos: NPoint) : WorkspaceAction
+    data class SetMenuQuick(val commands: List<QuickCommand>) : WorkspaceAction
+    data object ResetMenu : WorkspaceAction
+
     /** Replace the whole arrangement (preset or restored layout). */
     data class Replace(val layout: WorkspaceLayout) : WorkspaceAction
 }

@@ -49,6 +49,11 @@ object WorkspaceSerializer {
         "stylusOnly" to l.stylusOnlyDrawing,
         "zoneSize" to l.zoneSize.entries.associate { it.key.name to it.value },
         "quick" to l.quickToolbar.map { it.name },
+        "style" to l.style.name,
+        "exclusive" to l.exclusiveExpand,
+        "menuBarPos" to listOf(l.menuBarPos.x, l.menuBarPos.y),
+        "menuQuick" to l.menuQuick.map { it.name },
+        "menu" to l.menu.map { c -> mapOf("id" to c.id, "panels" to c.panels.map { it.name }) },
         "quickPos" to listOf(l.quickToolbarPos.x, l.quickToolbarPos.y),
         "focusBtnPos" to listOf(l.focusButtonPos.x, l.focusButtonPos.y),
         "panels" to l.panels.values.map { p ->
@@ -89,6 +94,14 @@ object WorkspaceSerializer {
         val zones = HashMap<DockZone, Float>()
         for ((k, v) in m["zoneSize"].asMap()) enumOf<DockZone>(k)?.let { zones[it] = v.asDouble().toFloat() }
         val quick = m["quick"].asList().mapNotNull { enumOf<QuickCommand>(it.asString()) }
+        val menu = m["menu"].asList().mapNotNull { cm ->
+            val o = cm.asMap()
+            val id = o["id"].asString()
+            if (id.isEmpty()) return@mapNotNull null
+            val info = MenuTree.DEFAULT.firstOrNull { it.id == id }
+            MenuCategory(id, info?.title ?: id, info?.glyph ?: "•", o["panels"].asList().mapNotNull { enumOf<PanelId>(it.asString()) })
+        }
+        val menuQuick = m["menuQuick"].asList().mapNotNull { enumOf<QuickCommand>(it.asString()) }
         val layout = WorkspaceLayout(
             name = m["name"].asString("Custom"),
             mode = enumOf<UserMode>(m["mode"].asString()) ?: UserMode.PROFESSIONAL,
@@ -100,6 +113,11 @@ object WorkspaceSerializer {
             quickToolbarPos = point(m["quickPos"], base.quickToolbarPos),
             focusButtonPos = point(m["focusBtnPos"], base.focusButtonPos),
             stylusOnlyDrawing = m["stylusOnly"].asBool(),
+            style = enumOf<LayoutStyle>(m["style"].asString()) ?: LayoutStyle.DOCKED,
+            exclusiveExpand = m["exclusive"].asBool(),
+            menu = menu.ifEmpty { MenuTree.DEFAULT },
+            menuBarPos = point(m["menuBarPos"], base.menuBarPos),
+            menuQuick = menuQuick.ifEmpty { WorkspaceLayout.DEFAULT_MENU_QUICK },
         )
         return WorkspaceReducer.normalize(layout)
     }

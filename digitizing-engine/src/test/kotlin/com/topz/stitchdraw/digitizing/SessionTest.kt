@@ -79,7 +79,7 @@ class SessionTest {
                 4 -> WorkspaceAction.Open(id)
                 5 -> WorkspaceAction.SetMaximized(id, rnd.nextBoolean())
                 6 -> WorkspaceAction.SetZoneCollapsed(DockZone.values()[rnd.nextInt(3)], rnd.nextBoolean())
-                else -> WorkspaceAction.Replace(WorkspacePresets.create(WorkspacePresets.builtInNames[rnd.nextInt(6)])!!)
+                else -> WorkspaceAction.Replace(WorkspacePresets.create(WorkspacePresets.builtInNames[rnd.nextInt(WorkspacePresets.builtInNames.size)])!!)
             })
         }
 
