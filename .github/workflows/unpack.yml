@@ -1,52 +1,69 @@
-name: Unpack update.zip
-
-# Upload update.zip to the repository root (via web UI or git) and push.
-# The zip must contain project files at its top level (app/, workspace/, ...).
-# Files are overwritten; nothing is deleted unless listed in DELETE.txt inside the zip.
+name: Unpack zip and build
 
 on:
   push:
-    paths: [ "update.zip" ]
+    branches: [ main ]
+    paths:
+      - '*.zip'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  unpack:
+  unpack-and-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Unpack update.zip
+      - name: Unpack zip
         run: |
-          set -e
-          test -f update.zip || { echo "update.zip not found"; exit 1; }
-          rm -rf .update_tmp && mkdir .update_tmp
-          unzip -q update.zip -d .update_tmp
-          # If the zip wraps everything in one folder, step into it
-          src=.update_tmp
-          if [ "$(ls -A .update_tmp | wc -l)" = "1" ] && [ -d ".update_tmp/$(ls .update_tmp)" ]; then
-            src=".update_tmp/$(ls .update_tmp)"
+          shopt -s nullglob
+          zips=(*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "Walang .zip sa root; laktawan."
+            exit 0
           fi
-          # Safety: refuse path traversal and protect workflow/wrapper-less updates
-          if unzip -Z1 update.zip | grep -E '(^|/)\.\.(/|$)'; then echo "unsafe paths"; exit 1; fi
-          if [ -f "$src/DELETE.txt" ]; then
-            while IFS= read -r f; do
-              case "$f" in ""|/*|*..*) continue;; esac
-              rm -rf -- "./$f"
-            done < "$src/DELETE.txt"
-            rm "$src/DELETE.txt"
+          for z in "${zips[@]}"; do
+            unzip -o "$z" -x ".github/*"
+            git rm -q -f "$z"
+          done
+          # Burahin ang mga path na nakalista sa REMOVE.txt (isa bawat linya). Hindi pinapayagan ang .git*, .., at absolute path.
+          if [ -f REMOVE.txt ]; then
+            while IFS= read -r path || [ -n "$path" ]; do
+              case "$path" in
+                ''|'#'*|.git*|*..*|/*) continue ;;
+              esac
+              git rm -r -q --ignore-unmatch -- "$path"
+            done < REMOVE.txt
+            rm -f REMOVE.txt
           fi
-          cp -a "$src"/. .
-          rm -rf .update_tmp update.zip
-          chmod +x gradlew || true
-
-      - name: Commit changes
-        run: |
-          git config user.name  "stitchdraw-bot"
-          git config user.email "stitchdraw-bot@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet && { echo "No changes"; exit 0; }
-          git commit -m "Apply update.zip"
+          git commit -m "Unpack update zip" || echo "Walang pagbabago"
           git push
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: StitchDraw-by-Topz-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Run unit tests
+        run: gradle testDebugUnitTest --stacktrace
