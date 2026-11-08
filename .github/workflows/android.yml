@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    # runs after the unpack workflow whatever its result: the unpacked files are committed in its second step
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -26,7 +26,8 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
+      # No setup-android step: GitHub's runners already ship the Android SDK (ANDROID_HOME) with licences accepted,
+      # and android-actions/setup-android@v3 crashes its sdkmanager under Node 24.
 
       - uses: gradle/actions/setup-gradle@v4
 
