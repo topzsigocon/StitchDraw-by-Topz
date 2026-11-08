@@ -21,6 +21,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Check that the project is unpacked
+        run: |
+          ls -la
+          if [ ! -d app ] || [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "::error::The project is NOT unpacked yet (app/ or gradle/wrapper is missing; update.zip is still in the repo root?). Run the workflow 'Unpack zip and build' first (Actions tab > Run workflow)."
+            exit 1
+          fi
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -85,14 +93,23 @@ jobs:
           set +e
           mkdir -p /tmp/out
           R=/tmp/out/ci-report.txt
+          gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" > /tmp/out/jobs.json 2> /tmp/out/jobs.err
           {
             echo "run=$RUN_ID commit=${GITHUB_SHA::7} build-job=${{ needs.build.result }}"
             echo
+            echo "=== JOBS OF THIS RUN ==="
+            jq -r '.jobs[] | "\(.id)  \(.name)  \(.status)  \(.conclusion)"' /tmp/out/jobs.json
+            echo
             echo "=== STEPS OF THE BUILD JOB ==="
-            gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '.jobs[] | select(.name=="build") | .steps[] | "\(.number). \(.name): \(.conclusion)"'
+            jq -r '.jobs[] | select(.name != "report") | .steps[] | "\(.number). \(.name): \(.conclusion)"' /tmp/out/jobs.json
+            echo
+            echo "=== API ERRORS (if any) ==="
+            cat /tmp/out/jobs.err
+            echo
+            echo "=== FILES IN THE REPO ROOT AT THIS COMMIT ==="
+            ls -a
           } > "$R" 2>&1
-          JOB=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '.jobs[] | select(.name=="build") | .id')
-          gh api "repos/$REPO/actions/jobs/$JOB/logs" 2>/dev/null | sed -E 's/^[0-9T:.-]+Z //' > /tmp/out/job.log
+          JOB=$(jq -r '.jobs[] | select(.name != "report") | .id' /tmp/out/jobs.json | head -1)
           {
             echo
             echo "=== ERROR LINES IN THE BUILD JOB LOG ==="
