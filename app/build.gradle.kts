@@ -11,13 +11,28 @@ android {
         applicationId = "com.topz.stitchdraw"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // Every CI run gets a higher version, so a new APK always installs over the old one.
+        val run = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = run
+        versionName = "0.2.$run"
+    }
+
+    // ONE fixed signing key for every build. Android only installs an update over an installed app when the
+    // signature matches; the GitHub runner would otherwise create a brand-new random debug key on each run,
+    // which is why updates used to require uninstalling first.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("stitchdraw.keystore")
+            storePassword = "stitchdraw-by-topz"
+            keyAlias = "stitchdraw"
+            keyPassword = "stitchdraw-by-topz"
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
