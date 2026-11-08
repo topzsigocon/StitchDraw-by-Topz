@@ -45,12 +45,16 @@ jobs:
       - name: Unit tests (engines + workspace)
         id: tests
         continue-on-error: true
-        run: ./gradlew test --stacktrace --continue
+        run: |
+          mkdir -p ci-logs
+          ./gradlew test --stacktrace --continue 2>&1 | tee ci-logs/tests.log
 
       - name: Build debug APK
         id: build
         continue-on-error: true
-        run: ./gradlew :app:assembleDebug --stacktrace
+        run: |
+          mkdir -p ci-logs
+          ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee ci-logs/build.log
 
       - name: Publish APK artifact
         if: steps.build.outcome == 'success'
@@ -59,6 +63,14 @@ jobs:
           name: StitchDraw-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Publish gradle logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: ci-logs/*.log
+          if-no-files-found: ignore
 
       - name: Publish test reports
         if: always()
@@ -83,6 +95,13 @@ jobs:
       actions: read
     steps:
       - uses: actions/checkout@v5
+
+      - name: Download gradle logs
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-logs
+          path: /tmp/gl
 
       - name: Collect logs
         env:
@@ -109,11 +128,11 @@ jobs:
             echo "=== FILES IN THE REPO ROOT AT THIS COMMIT ==="
             ls -a
           } > "$R" 2>&1
-          JOB=$(jq -r '.jobs[] | select(.name != "report") | .id' /tmp/out/jobs.json | head -1)
+          cat /tmp/gl/tests.log /tmp/gl/build.log > /tmp/out/job.log 2>/dev/null
           {
             echo
             echo "=== ERROR LINES IN THE BUILD JOB LOG ==="
-            grep -n -E '##\[error\]|^e: |FAILED|What went wrong|Execution failed|AssertionError|Error:' /tmp/out/job.log | head -150
+            grep -n -E '^e: |FAILED|What went wrong|Execution failed|AssertionError|error:|Unresolved|BUILD FAILED' /tmp/out/job.log | head -150
             echo
             echo "=== LAST 40 LINES OF THE BUILD JOB LOG ==="
             tail -40 /tmp/out/job.log
@@ -128,7 +147,7 @@ jobs:
               gh run view "$ID" --repo "$REPO" --log-failed 2>&1 | tail -120
             } >> "$R"
           done
-          tail -n 4000 /tmp/out/job.log > /tmp/out/job-tail.log; mv /tmp/out/job-tail.log /tmp/out/job.log
+          touch /tmp/out/job.log; tail -n 4000 /tmp/out/job.log > /tmp/out/job-tail.log; mv /tmp/out/job-tail.log /tmp/out/job.log
           head -c 60000 "$R" >> "$GITHUB_STEP_SUMMARY"
           exit 0
 
