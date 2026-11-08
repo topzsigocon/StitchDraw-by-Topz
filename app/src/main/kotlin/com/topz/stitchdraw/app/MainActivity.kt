@@ -61,6 +61,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashLog.install(this)
 
         // The engine session and the workspace are created independently and never reference each other.
         session = DigitizingSession()
@@ -120,6 +121,33 @@ class MainActivity : Activity() {
         }
         host.setQuickEnabled { quickEnabled(it) }
         refreshPanels()
+        if (savedInstanceState == null) CrashLog.read(this)?.let { showLog("The app closed unexpectedly last time", it, clearAfter = true) }
+    }
+
+    /** Shows [text] (version info and/or a crash trace) with Copy and Share, so it can be sent without typing it out. */
+    private fun showLog(title: String, text: String, clearAfter: Boolean) {
+        val body = android.widget.TextView(this).apply {
+            this.text = text
+            setTextIsSelectable(true)
+            textSize = 11f
+            typeface = android.graphics.Typeface.MONOSPACE
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+        }
+        val scroll = android.widget.ScrollView(this).apply { addView(body) }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(scroll)
+            .setPositiveButton("Share") { _, _ -> CrashLog.share(this, text); if (clearAfter) CrashLog.clear(this) }
+            .setNeutralButton("Copy") { _, _ -> CrashLog.copy(this, text); toast("Copied"); if (clearAfter) CrashLog.clear(this) }
+            .setNegativeButton("Close") { _, _ -> if (clearAfter) CrashLog.clear(this) }
+            .show()
+    }
+
+    private fun showAbout() {
+        val crash = CrashLog.read(this)
+        val info = CrashLog.header(this) + "Layout: ${workspace.layout.name}\n" +
+            (if (crash != null) "\n--- last crash ---\n" + crash else "\nNo crash recorded.")
+        showLog("About / Diagnostics", info, clearAfter = false)
     }
 
     override fun onPause() {
@@ -230,6 +258,7 @@ class MainActivity : Activity() {
         m.menu.add(0, 13, 13, "Restore from backup…")
         m.menu.add(0, 14, 14, "Optimize stitch order")
         m.menu.add(0, 11, 11, "Import SVG / image / PDF…")
+        m.menu.add(1, 15, 15, "About / Diagnostics…")
         m.setOnMenuItemClickListener {
             when (it.itemId) {
                 0 -> { session.load(com.topz.stitchdraw.embroidery.EmbroideryDesign()); projectIO.newProject() }
@@ -241,6 +270,7 @@ class MainActivity : Activity() {
                 11 -> imageImport.launchPicker()
                 12 -> textTool.show()
                 13 -> restoreDialog.show()
+                15 -> showAbout()
                 14 -> {
                     val r = session.optimizeSequence()
                     toast(if (!r.changed) "Stitch order is already efficient"
