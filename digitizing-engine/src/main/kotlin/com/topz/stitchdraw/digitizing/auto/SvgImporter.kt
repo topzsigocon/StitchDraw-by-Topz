@@ -7,13 +7,17 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import kotlin.math.*
 
-class SvgShape(val subpaths: List<List<Vec2>>, val closed: Boolean, val fillRgb: Int?, val strokeRgb: Int?)
+/** [strokeWidth] is the stroke thickness in SVG user units after transforms (SVG default 1); it decides satin vs running when imported. */
+class SvgShape(val subpaths: List<List<Vec2>>, val closed: Boolean, val fillRgb: Int?, val strokeRgb: Int?, val strokeWidth: Float = 1f)
 class SvgResult(val shapes: List<SvgShape>, val width: Float, val height: Float, val minX: Float, val minY: Float)
 
 class SvgException(msg: String) : Exception(msg)
 
 /** Minimal but real SVG reader: path (all commands incl. arcs), rect, circle, ellipse, line, polyline, polygon, g, transforms, fill/stroke. */
 object SvgImporter {
+    /** Strokes at least this thick (mm, after scaling to the chosen design width) become satin columns. */
+    const val STROKE_SATIN_MIN_MM = 0.8f
+
 
     fun parse(bytes: ByteArray): SvgResult {
         val doc = try {
@@ -31,12 +35,12 @@ object SvgImporter {
         else { w = num(root.getAttribute("width")) ?: 100f; h = num(root.getAttribute("height")) ?: 100f }
         val tol = (max(w, h) * 0.0004f).coerceAtLeast(0.001f)
         val out = ArrayList<SvgShape>()
-        walk(root, Mat.I, Style(0x000000, null), tol, out)
+        walk(root, Mat.I, Style(0x000000, null, 1f), tol, out)
         return SvgResult(out, w, h, minX, minY)
     }
 
     // ---- styles & transforms ----
-    private class Style(val fill: Int?, val stroke: Int?)
+    private class Style(val fill: Int?, val stroke: Int?, val strokeW: Float)
     private class Mat(val a: Float, val b: Float, val c: Float, val d: Float, val e: Float, val f: Float) {
         fun then(o: Mat) = Mat(a * o.a + c * o.b, b * o.a + d * o.b, a * o.c + c * o.d, b * o.c + d * o.d,
             a * o.e + c * o.f + e, b * o.e + d * o.f + f)
@@ -69,14 +73,16 @@ object SvgImporter {
         "brown" to 0xA52A2A, "cyan" to 0x00FFFF, "magenta" to 0xFF00FF, "navy" to 0x000080, "gold" to 0xFFD700, "silver" to 0xC0C0C0)
 
     private fun style(e: Element, parent: Style): Style {
-        var fill = parent.fill; var stroke = parent.stroke
+        var fill = parent.fill; var stroke = parent.stroke; var sw = parent.strokeW
         if (e.hasAttribute("fill")) fill = color(e.getAttribute("fill"), fill)
         if (e.hasAttribute("stroke")) stroke = color(e.getAttribute("stroke"), stroke)
+        if (e.hasAttribute("stroke-width")) sw = num(e.getAttribute("stroke-width"))?.coerceAtLeast(0f) ?: sw
         for (decl in e.getAttribute("style").split(';')) {
             val kv = decl.split(':', limit = 2); if (kv.size < 2) continue
-            when (kv[0].trim()) { "fill" -> fill = color(kv[1], fill); "stroke" -> stroke = color(kv[1], stroke) }
+            when (kv[0].trim()) { "fill" -> fill = color(kv[1], fill); "stroke" -> stroke = color(kv[1], stroke)
+                "stroke-width" -> sw = num(kv[1])?.coerceAtLeast(0f) ?: sw }
         }
-        return Style(fill, stroke)
+        return Style(fill, stroke, sw)
     }
 
     private fun transform(s: String): Mat {
@@ -126,7 +132,7 @@ object SvgImporter {
             val tr = subs.map { sp -> sp.map { m.ap(it) } }
             if (tr.isNotEmpty()) out.add(SvgShape(tr, closedShape || tag == "path" && st.fill != null,
                 if (tag == "line" || tag == "polyline") null.takeIf { st.stroke == null && st.fill == null } ?: (if (tag == "polyline" && st.fill != null) st.fill else st.stroke ?: st.fill) else st.fill,
-                st.stroke))
+                st.stroke, st.strokeW * sqrt(abs(m.a * m.d - m.b * m.c))))
         }
         var c: Node? = e.firstChild
         while (c != null) { if (c is Element) walk(c, m, st, tol, out); c = c.nextSibling }
@@ -229,7 +235,12 @@ object SvgImporter {
             val strokeRgb = s.strokeRgb ?: if (s.fillRgb != null && !s.closed) s.fillRgb else null
             if (strokeRgb != null) for (sp in subs) {
                 val path = if (s.closed && sp.size >= 3) sp + sp[0] else sp
-                objs.add(DesignObject(id++, "Line $id", StitchType.RUNNING, path, idx(strokeRgb), layerId, params))
+                // A real stroke has a thickness: thick enough to see = satin column of that width, hairline = running stitch.
+                val wMm = if (s.strokeRgb != null) s.strokeWidth * k else 0f
+                if (wMm >= STROKE_SATIN_MIN_MM) {
+                    val w = wMm.coerceIn(StitchParams.MIN_WIDTH, StitchParams.MAX_WIDTH)
+                    objs.add(DesignObject(id++, "Stroke $id", StitchType.SATIN, path, idx(strokeRgb), layerId, params.copy(widthMm = w)))
+                } else objs.add(DesignObject(id++, "Line $id", StitchType.RUNNING, path, idx(strokeRgb), layerId, params))
             }
         }
         return objs to colors

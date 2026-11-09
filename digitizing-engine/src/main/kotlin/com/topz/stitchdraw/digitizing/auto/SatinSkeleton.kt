@@ -299,7 +299,60 @@ object SatinSkeleton {
                 if (piece.size >= 2 && total >= 0.8f) out.add(SatinColumn(piece, ch.wm.coerceIn(0.5f, 12f)))
             }
         }
-        return out
+        return pruneRedundant(out, r)
+    }
+
+    /**
+     * Drops short columns that add nothing: where two strokes meet at an acute angle the skeleton can leave a little extra
+     * branch inside the junction (the "knot" in a Z). A column is redundant when the part of the shape that only it covers is
+     * smaller than about a third of a width-square and it is short; the columns that stay already stitch that area.
+     */
+    private fun pruneRedundant(cols: List<SatinColumn>, r: Raster): List<SatinColumn> {
+        if (cols.size < 2) return cols
+        val mm = r.mmPerPx
+        class Cover(val col: SatinColumn, val px: IntArray)
+        fun cover(c: SatinColumn): IntArray {
+            val half = c.widthMm / 2f + mm * 0.5f
+            var x0 = Float.MAX_VALUE; var y0 = Float.MAX_VALUE; var x1 = -Float.MAX_VALUE; var y1 = -Float.MAX_VALUE
+            for (p in c.path) { x0 = min(x0, p.x); y0 = min(y0, p.y); x1 = max(x1, p.x); y1 = max(y1, p.y) }
+            val ix0 = max(0, ((x0 - half - r.ox) / mm).toInt()); val ix1 = min(r.w - 1, ((x1 + half - r.ox) / mm).toInt() + 1)
+            val iy0 = max(0, ((y0 - half - r.oy) / mm).toInt()); val iy1 = min(r.h - 1, ((y1 + half - r.oy) / mm).toInt() + 1)
+            val hit = ArrayList<Int>()
+            for (iy in iy0..iy1) for (ix in ix0..ix1) {
+                if (!r.mask[iy * r.w + ix]) continue
+                val px = Vec2(r.ox + (ix + 0.5f) * mm, r.oy + (iy + 0.5f) * mm)
+                var best = Float.MAX_VALUE
+                for (i in 1 until c.path.size) best = min(best, distToSegment(px, c.path[i - 1], c.path[i]))
+                if (best <= half) hit.add(iy * r.w + ix)
+            }
+            return hit.toIntArray()
+        }
+        val all = cols.map { Cover(it, cover(it)) }.toMutableList()
+        val count = IntArray(r.w * r.h)
+        for (c in all) for (i in c.px) count[i]++
+        fun length(c: SatinColumn): Float { var t = 0f; for (i in 1 until c.path.size) t += c.path[i].distanceTo(c.path[i - 1]); return t }
+        var changed = true
+        while (changed && all.size > 1) {
+            changed = false
+            for (c in all.sortedBy { length(it.col) }) {
+                val wm = c.col.widthMm
+                if (length(c.col) >= 4f * wm) continue
+                var unique = 0
+                for (i in c.px) if (count[i] == 1) unique++
+                if (unique * mm * mm < 0.35f * wm * wm) {
+                    for (i in c.px) count[i]--
+                    all.remove(c); changed = true; break
+                }
+            }
+        }
+        return all.map { it.col }
+    }
+
+    private fun distToSegment(p: Vec2, a: Vec2, b: Vec2): Float {
+        val dx = b.x - a.x; val dy = b.y - a.y
+        val l2 = dx * dx + dy * dy
+        val t = if (l2 < 1e-9f) 0f else (((p.x - a.x) * dx + (p.y - a.y) * dy) / l2).coerceIn(0f, 1f)
+        return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
     }
 
     /**
@@ -307,6 +360,11 @@ object SatinSkeleton {
      * within about one width on each side is cut there into separate columns; each is run straight past the corner (cleanEnd, no
      * through stroke) so the two overlap and the outer corner is covered. Smooth curves and closed loops without corners are untouched.
      */
+    /** Share of the corner angle that must already be turned within half the window (a steady arc turns about 0.5 of it). */
+    private const val CORNER_CONCENTRATION = 0.75f
+    /** Turns of about 86 degrees or more are always corners, however gently the thinned skeleton rounds them. */
+    private const val ALWAYS_CORNER = 1.5f
+
     private fun splitAtCorners(pts0: List<Vec2>, wm: Float, closed: Boolean): List<List<Vec2>> {
         if (pts0.size < 4) return listOf(pts0)
         val pts = if (closed) pts0.dropLast(1) else pts0
@@ -331,7 +389,13 @@ object SatinSkeleton {
             val v1x = b.x - a.x; val v1y = b.y - a.y; val v2x = c.x - b.x; val v2y = c.y - b.y
             val l = hypot(v1x, v1y) * hypot(v2x, v2y); if (l < 1e-6f) continue
             val ang = Math.acos(((v1x * v2x + v1y * v2y) / l).toDouble().coerceIn(-1.0, 1.0)).toFloat()
-            if (ang >= 0.96f) cs.add(C(i, ang))
+            if (ang < 0.96f) continue
+            // A corner turns sharply right at the vertex; a round bowl turns steadily, so over half the window it has turned only about half as much.
+            val a2 = at(cum[i] - win / 2f); val c2 = at(cum[i] + win / 2f)
+            val u1x = b.x - a2.x; val u1y = b.y - a2.y; val u2x = c2.x - b.x; val u2y = c2.y - b.y
+            val l2 = hypot(u1x, u1y) * hypot(u2x, u2y); if (l2 < 1e-6f) continue
+            val ang2 = Math.acos(((u1x * u2x + u1y * u2y) / l2).toDouble().coerceIn(-1.0, 1.0)).toFloat()
+            if (ang >= ALWAYS_CORNER || ang2 >= CORNER_CONCENTRATION * ang) cs.add(C(i, ang))
         }
         if (cs.isEmpty()) return listOf(pts0)
         val accepted = ArrayList<C>()

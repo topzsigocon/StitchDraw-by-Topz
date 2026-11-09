@@ -198,3 +198,54 @@ class SatinCornerTest {
         assertEquals(1, SatinSkeleton.columnsFor(listOf(Vec2(0f, 0f), Vec2(20f, 0f), Vec2(20f, 3f), Vec2(0f, 3f)), emptyList()).size)
     }
 }
+
+class SatinPolishTest {
+    private fun len(c: SatinColumn): Float { var t = 0f; for (i in 1 until c.path.size) t += c.path[i].distanceTo(c.path[i - 1]); return t }
+
+    /** A thick round arc (outer radius 4.5, inner 1.5, 270 degrees) bends steadily: it must stay ONE column, not be cut like a corner. */
+    @Test fun tightRoundArcIsNotSplitLikeACorner() {
+        val outer = (0..54).map { val a = Math.toRadians(it * 5.0 - 45.0); Vec2(10f + (4.5 * Math.cos(a)).toFloat(), 10f + (4.5 * Math.sin(a)).toFloat()) }
+        val inner = (54 downTo 0).map { val a = Math.toRadians(it * 5.0 - 45.0); Vec2(10f + (1.5 * Math.cos(a)).toFloat(), 10f + (1.5 * Math.sin(a)).toFloat()) }
+        val cols = SatinSkeleton.columnsFor(outer + inner, emptyList())
+        assertEquals("columns=${cols.map { len(it) }}", 1, cols.size)
+        assertTrue(len(cols[0]) > 12f)
+    }
+
+    /** A real right-angle corner is still cut (so the stitches do not fan). */
+    @Test fun squareCornerStillSplits() {
+        val l = listOf(Vec2(0f, 0f), Vec2(20f, 0f), Vec2(20f, 3f), Vec2(3f, 3f), Vec2(3f, 20f), Vec2(0f, 20f))
+        assertEquals(2, SatinSkeleton.columnsFor(l, emptyList()).size)
+    }
+
+    /** A "Z": two bars and one diagonal. The acute junctions must not leave a little extra column (the knot). */
+    @Test fun zHasThreeColumnsAndNoKnot() {
+        val z = listOf(Vec2(0f, 0f), Vec2(14f, 0f), Vec2(14f, 3.2f), Vec2(5.2f, 14f), Vec2(14f, 14f), Vec2(14f, 17.2f),
+            Vec2(0f, 17.2f), Vec2(0f, 14f), Vec2(8.8f, 3.2f), Vec2(0f, 3.2f))
+        val cols = SatinSkeleton.columnsFor(z, emptyList())
+        assertEquals("columns=${cols.map { len(it) }}", 3, cols.size)
+        assertTrue(cols.all { len(it) > 3f * it.widthMm })
+    }
+
+    /** A short but needed column (a dot) is never thrown away as redundant. */
+    @Test fun lonelyShortColumnIsKept() {
+        val dot = listOf(Vec2(0f, 0f), Vec2(3.4f, 0f), Vec2(3.4f, 6f), Vec2(0f, 6f))
+        assertEquals(1, SatinSkeleton.columnsFor(dot, emptyList()).size)
+    }
+
+    /** A B-like glyph (stem + two round bowls) comes out as a handful of long columns, not a pile of fragments. */
+    @Test fun bowlsStayWholeInBLikeShape() {
+        fun arc(cx: Float, cy: Float, r: Float, from: Double, to: Double, n: Int) =
+            (0..n).map { val a = Math.toRadians(from + (to - from) * it / n); Vec2(cx + (r * Math.cos(a)).toFloat(), cy + (r * Math.sin(a)).toFloat()) }
+        fun bowl(top: Float, bottom: Float): List<Vec2> {
+            val rO = (bottom - top) / 2f; val rI = rO - 3.2f; val cy = (top + bottom) / 2f
+            return arc(3.2f, cy, rO, -90.0, 90.0, 36) + arc(3.2f, cy, rI, 90.0, -90.0, 36)
+        }
+        val b1 = bowl(0f, 11f); val b2 = bowl(11f, 22f)
+        val shape = listOf(Vec2(0f, 0f), Vec2(3.2f, 0f)) + b1.drop(0) + listOf(Vec2(3.2f, 11f)) + b2 + listOf(Vec2(3.2f, 22f), Vec2(0f, 22f))
+        val cols = SatinSkeleton.columnsFor(shape, emptyList())
+        println("B-like columns=${cols.map { len(it) }}")
+        assertTrue("columns=${cols.size}", cols.size <= 4)
+        assertTrue(cols.all { len(it) > 8f })
+    }
+}
+
