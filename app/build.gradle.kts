@@ -43,6 +43,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":vector-art-engine"))
     implementation(project(":workspace"))
     implementation(project(":file-engine"))
     implementation(project(":export-engine"))

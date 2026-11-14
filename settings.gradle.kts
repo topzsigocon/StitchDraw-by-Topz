@@ -18,6 +18,7 @@ rootProject.name = "StitchDraw"
 // Pure Kotlin/JVM engines (unit-testable without Android)
 include(":core")
 include(":vector-engine")
+include(":vector-art-engine")
 include(":embroidery-engine")
 include(":digitizing-engine")
 include(":workspace")
