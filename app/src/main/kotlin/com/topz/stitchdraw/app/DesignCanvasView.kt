@@ -7,6 +7,7 @@ import com.topz.stitchdraw.vectorart.Kind as VectorKind
 import com.topz.stitchdraw.vectorart.Node as VectorNode
 import com.topz.stitchdraw.vectorart.Geo
 import com.topz.stitchdraw.vectorart.VectorEditOps
+import com.topz.stitchdraw.vectorart.VectorAdvancedOps
 
 import android.content.Context
 import android.graphics.Canvas
@@ -493,9 +494,16 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
                     VectorTool.SELECT -> {
                         val hit = hitVector(vectorDown, doc)
                         if (multiSelectMode) {
-                            if (hit != null) { if (hit.uid !in selectedVectorIds) selectedVectorIds.add(hit.uid); selectedVectorUid = hit.uid }
+                            if (hit != null) {
+                                val members = groupMembers(hit, doc)
+                                if (hit.uid in selectedVectorIds) selectedVectorIds.removeAll(members)
+                                else selectedVectorIds.addAll(members)
+                                selectedVectorUid = if (hit.uid in selectedVectorIds) hit.uid else selectedVectorIds.lastOrNull()
+                            }
                         } else {
-                            selectedVectorIds.clear(); hit?.let { selectedVectorIds.add(it.uid) }; selectedVectorUid = hit?.uid
+                            selectedVectorIds.clear()
+                            hit?.let { selectedVectorIds.addAll(groupMembers(it, doc)) }
+                            selectedVectorUid = hit?.uid
                         }
                         if (hit != null && !isVectorLocked(hit, doc) && hit.uid in selectedVectorIds) {
                             vectorOriginalGroup = selectedVectorIds.mapNotNull { id -> doc.objs.firstOrNull { it.uid == id && !isVectorLocked(it, doc) }?.let { id to it.copy() } }.toMap(); vectorSelectedDown = vectorDown
@@ -598,6 +606,41 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
 
     fun toggleMultiSelect() { multiSelectMode = !multiSelectMode; selectedVectorIds.clear(); selectedVectorUid = null; invalidate() }
     fun clearVectorSelection() { selectedVectorIds.clear(); selectedVectorUid = null; invalidate() }
+
+    private fun groupMembers(obj: VObj, doc: Doc): Set<Int> =
+        if (obj.group == 0) setOf(obj.uid) else doc.objs.asSequence()
+            .filter { it.group == obj.group && !isVectorLocked(it, doc) }
+            .map { it.uid }.toSet()
+
+    fun applyVectorBoolean(mode: VectorAdvancedOps.BooleanMode): Boolean {
+        val doc = vectorDocument ?: return false
+        val ids = selectedVectorIds.toList()
+        val result = VectorAdvancedOps.booleanOperation(doc, ids, mode) ?: return false
+        selectedVectorIds.clear(); selectedVectorIds.add(result.uid); selectedVectorUid = result.uid
+        onVectorChanged?.invoke(); invalidate(); return true
+    }
+
+    fun groupSelectedVectors(): Boolean {
+        val doc = vectorDocument ?: return false
+        val ok = VectorAdvancedOps.group(doc, selectedVectorIds)
+        if (ok) { onVectorChanged?.invoke(); invalidate() }
+        return ok
+    }
+
+    fun ungroupSelectedVectors(): Int {
+        val doc = vectorDocument ?: return 0
+        val count = VectorAdvancedOps.ungroup(doc, selectedVectorIds)
+        if (count > 0) { onVectorChanged?.invoke(); invalidate() }
+        return count
+    }
+
+    fun cleanupSelectedVectors(): Int {
+        val doc = vectorDocument ?: return 0
+        val ids = if (selectedVectorIds.isNotEmpty()) selectedVectorIds.toSet() else setOfNotNull(selectedVectorUid)
+        val count = VectorAdvancedOps.cleanup(doc, ids)
+        if (count > 0) { onVectorChanged?.invoke(); invalidate() }
+        return count
+    }
 
     fun finishPenPath(closed: Boolean = false): Boolean {
         val doc=vectorDocument ?: return false

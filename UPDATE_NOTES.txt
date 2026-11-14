@@ -1,15 +1,20 @@
-StitchDraw by Topz — VecDraw Integration Phase 4
+StitchDraw by Topz – VecDraw Integration Phase 5
 
-Added:
-- Pen / Bézier path construction with drag-created tangent handles and close/finish actions.
-- Independent node-anchor and Bézier-handle editing.
-- Cusp, Smooth and Symmetric node modes; symmetric-handle state is saved in vector project JSON.
-- Insert/delete node, split open paths, and join two selected open paths.
-- Multi-select, group move, object alignment and distribution controls.
-- Backward-compatible loading of older seven-value node records.
+Included:
+- Boolean operations: Union, Subtract, Intersect and Exclude.
+- Boolean output is a new editable compound path; source paths are retained.
+- Group / Ungroup operations with group-aware canvas selection and movement.
+- Safe path cleanup for duplicate and near-collinear line anchors; Bézier handles are preserved.
+- UI menu entries and manual QA documentation.
 
-Preserved:
-- Existing StitchDraw workspace, embroidery engines, vector-to-stitch pipeline and .STD project container.
-- Existing signing configuration and keystore are not part of this patch and must remain untouched in the repository.
+Requirements for Boolean operations:
+- Exactly two selected closed PATH objects.
+- Both objects must be editable and on the same visible, unlocked vector layer.
+- Subtract uses selection order: first selected minus second selected.
 
-Apply this ZIP at the repository root, commit/push, then run Android CI. Local Gradle build could not be completed in this environment because services.gradle.org was unreachable. Treat GitHub Actions as the authoritative compile/test result.
+Important:
+- Boolean output is flattened to editable line nodes at approximately 0.65 mm sampling. Review tight details before stitch conversion or machine export.
+- Original vector shapes are not deleted.
+- No signing keystore, signing credentials, Gradle configuration, or embroidery engine files are included in this patch.
+- Apply this patch over the successful Phase 4 repository state, not over an older repository snapshot.
+- Run Android CI before installing the APK.

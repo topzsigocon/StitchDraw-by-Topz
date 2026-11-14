@@ -6,6 +6,7 @@ import com.topz.stitchdraw.vectorart.Node as VectorNode
 import com.topz.stitchdraw.vectorart.VObj
 import com.topz.stitchdraw.vectorart.VectorStitchAdapter
 import com.topz.stitchdraw.vectorart.VectorEditOps
+import com.topz.stitchdraw.vectorart.VectorAdvancedOps
 import com.topz.stitchdraw.embroidery.StitchParams
 import com.topz.stitchdraw.embroidery.StitchType
 import android.graphics.Matrix
@@ -375,6 +376,10 @@ class MainActivity : Activity() {
         menu.menu.add(1, 10, 10, "Delete selected vector")
         menu.menu.add(2, 11, 11, "Convert selected vector to Running stitch")
         menu.menu.add(2, 12, 12, "Convert selected vector to Tatami fill")
+        menu.menu.add(2, 21, 21, "Boolean Shape Operations…")
+        menu.menu.add(2, 22, 22, "Group selected objects")
+        menu.menu.add(2, 23, 23, "Ungroup selected objects")
+        menu.menu.add(2, 24, 24, "Clean up selected paths")
         menu.menu.add(3, 6, 6, "Clear vector artwork…")
         menu.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -397,6 +402,10 @@ class MainActivity : Activity() {
                 10 -> if (!canvas.deleteSelectedVector()) toast("Select an unlocked vector object first.")
                 11 -> convertSelectedVector(StitchType.RUNNING)
                 12 -> convertSelectedVector(StitchType.TATAMI)
+                21 -> showVectorBooleanMenu(anchor)
+                22 -> if (!canvas.groupSelectedVectors()) toast("Select at least two unlocked objects on the same layer.") else toast("Objects grouped. Select any member to move the group.")
+                23 -> { val count = canvas.ungroupSelectedVectors(); toast(if (count > 0) "Ungrouped $count objects." else "Select grouped objects first.") }
+                24 -> { val count = canvas.cleanupSelectedVectors(); toast(if (count > 0) "Removed $count redundant nodes." else "No safe path cleanup found. Curved handles were preserved.") }
                 6 -> android.app.AlertDialog.Builder(this).setTitle("Clear vector artwork?")
                     .setMessage("This removes the vector objects from the current project. Existing embroidery stitches are not affected.")
                     .setNegativeButton("Cancel", null).setPositiveButton("Clear") { _, _ ->
@@ -406,6 +415,31 @@ class MainActivity : Activity() {
             true
         }
         menu.show()
+    }
+
+    private fun showVectorBooleanMenu(anchor: View) {
+        val m = PopupMenu(this, anchor)
+        m.menu.add(0, 1, 1, "Union (combine both shapes)")
+        m.menu.add(0, 2, 2, "Subtract (first minus second)")
+        m.menu.add(0, 3, 3, "Intersect (overlapping area only)")
+        m.menu.add(0, 4, 4, "Exclude (remove overlapping area)")
+        m.setOnMenuItemClickListener { item ->
+            val mode = when (item.itemId) {
+                1 -> VectorAdvancedOps.BooleanMode.UNION
+                2 -> VectorAdvancedOps.BooleanMode.SUBTRACT
+                3 -> VectorAdvancedOps.BooleanMode.INTERSECT
+                4 -> VectorAdvancedOps.BooleanMode.EXCLUDE
+                else -> return@setOnMenuItemClickListener true
+            }
+            if (!canvas.applyVectorBoolean(mode)) {
+                toast("Select exactly two unlocked, closed vector paths on the same visible layer.")
+            } else {
+                toast("Boolean result created. Original shapes were retained.")
+                refreshPanels()
+            }
+            true
+        }
+        m.show()
     }
 
     private fun showNodeEditMenu(anchor: View) {
