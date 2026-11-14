@@ -1,16 +1,12 @@
-StitchDraw by Topz — VecDraw Integration Phase 3
+StitchDraw by Topz - Phase 3 compile hotfix
 
-Adds interactive vector tools to the existing embroidery canvas:
-- Select / Move
-- Node Edit
-- Drag-to-create Rectangle, Ellipse, and Hexagon
-- Freehand Pencil
-- Delete selected vector object
-- Convert selected vector object to Running or Tatami stitch
+Fix:
+- Added the missing android.graphics.RectF import in DesignCanvasView.kt.
+- Resolves the reported Kotlin compiler error at hitVector(): Unresolved reference 'RectF'.
 
-Vector artwork remains separate from embroidery objects and is retained after conversion.
-Changes to vector artwork trigger the existing project autosave path.
-No signing key or signing configuration was changed.
+Apply this ZIP at the repository root and commit/push the change.
+No keystore, signing configuration, Gradle files, or application IDs are changed.
 
-After extracting this update at the repository root, run the existing GitHub Actions Android build and tests. Build success is not pre-verified here.
-See docs/VEC_DRAW_INTEGRATION_PHASE_3.md for usage and current limitations.
+Verification:
+- Source-level fix checked against the reported failing line.
+- Full Gradle/GitHub Actions build has not been run from this patch package; rerun Android CI after applying.
