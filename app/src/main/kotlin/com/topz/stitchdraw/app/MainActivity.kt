@@ -5,6 +5,7 @@ import com.topz.stitchdraw.vectorart.Kind as VectorKind
 import com.topz.stitchdraw.vectorart.Node as VectorNode
 import com.topz.stitchdraw.vectorart.VObj
 import com.topz.stitchdraw.vectorart.VectorStitchAdapter
+import com.topz.stitchdraw.vectorart.VectorEditOps
 import com.topz.stitchdraw.embroidery.StitchParams
 import com.topz.stitchdraw.embroidery.StitchType
 import android.graphics.Matrix
@@ -362,7 +363,15 @@ class MainActivity : Activity() {
         menu.menu.add(0, 5, 5, "Draw Ellipse")
         menu.menu.add(0, 7, 7, "Draw Hexagon")
         menu.menu.add(0, 8, 8, "Freehand Pencil")
-        menu.menu.add(0, 9, 9, "Stop Vector Tool")
+        menu.menu.add(0, 13, 13, "Pen / Bézier Tool")
+        menu.menu.add(0, 9, 9, "Stop Vector Tool / Finish Pen")
+        menu.menu.add(1, 14, 14, if (canvas.multiSelectMode) "Disable Multi-select" else "Enable Multi-select")
+        menu.menu.add(1, 20, 20, "Clear Vector Selection")
+        menu.menu.add(1, 15, 15, "Add Node at Touch / Delete Node / Node Mode…")
+        menu.menu.add(1, 16, 16, "Split Path at Selected Node")
+        menu.menu.add(1, 17, 17, "Join Two Selected Paths")
+        menu.menu.add(2, 18, 18, "Align Objects…")
+        menu.menu.add(2, 19, 19, "Distribute Objects…")
         menu.menu.add(1, 10, 10, "Delete selected vector")
         menu.menu.add(2, 11, 11, "Convert selected vector to Running stitch")
         menu.menu.add(2, 12, 12, "Convert selected vector to Tatami fill")
@@ -376,7 +385,15 @@ class MainActivity : Activity() {
                 5 -> canvas.vectorTool = DesignCanvasView.VectorTool.ELLIPSE
                 7 -> canvas.vectorTool = DesignCanvasView.VectorTool.POLYGON
                 8 -> canvas.vectorTool = DesignCanvasView.VectorTool.FREEHAND
-                9 -> canvas.vectorTool = DesignCanvasView.VectorTool.OFF
+                13 -> canvas.vectorTool = DesignCanvasView.VectorTool.PEN
+                9 -> { if (canvas.vectorTool == DesignCanvasView.VectorTool.PEN) canvas.finishPenPath(false); canvas.vectorTool = DesignCanvasView.VectorTool.OFF }
+                14 -> canvas.toggleMultiSelect()
+                20 -> canvas.clearVectorSelection()
+                15 -> showNodeEditMenu(anchor)
+                16 -> if (!canvas.splitSelectedPath()) toast("Select an interior node on an open path first.")
+                17 -> if (!canvas.joinSelectedPaths()) toast("Select exactly two unlocked open paths on the same layer.")
+                18 -> showVectorAlignMenu(anchor)
+                19 -> showVectorDistributeMenu(anchor)
                 10 -> if (!canvas.deleteSelectedVector()) toast("Select an unlocked vector object first.")
                 11 -> convertSelectedVector(StitchType.RUNNING)
                 12 -> convertSelectedVector(StitchType.TATAMI)
@@ -389,6 +406,36 @@ class MainActivity : Activity() {
             true
         }
         menu.show()
+    }
+
+    private fun showNodeEditMenu(anchor: View) {
+        val m=PopupMenu(this,anchor)
+        m.menu.add(0,1,1,"Cusp Node")
+        m.menu.add(0,2,2,"Smooth Node")
+        m.menu.add(0,3,3,"Symmetric Node")
+        m.menu.add(1,4,4,"Delete Selected Node")
+        m.menu.add(1,5,5,"Add Node (tap path while Node Edit is active)")
+        m.setOnMenuItemClickListener { item -> when(item.itemId) {
+            1 -> if(!canvas.setSelectedNodeMode(VectorEditOps.HandleMode.CUSP)) toast("Select a node first.")
+            2 -> if(!canvas.setSelectedNodeMode(VectorEditOps.HandleMode.SMOOTH)) toast("Select a node first.")
+            3 -> if(!canvas.setSelectedNodeMode(VectorEditOps.HandleMode.SYMMETRIC)) toast("Select a node first.")
+            4 -> if(!canvas.deleteSelectedNode()) toast("Select a node first.")
+            5 -> { canvas.vectorTool=DesignCanvasView.VectorTool.NODE; toast("Tap a segment to insert a node.") }
+        }; true }
+        m.show()
+    }
+
+    private fun showVectorAlignMenu(anchor: View) {
+        val m=PopupMenu(this,anchor)
+        val entries=listOf("Align Left" to VectorEditOps.Align.LEFT,"Center Horizontally" to VectorEditOps.Align.H_CENTER,"Align Right" to VectorEditOps.Align.RIGHT,"Align Top" to VectorEditOps.Align.TOP,"Center Vertically" to VectorEditOps.Align.V_CENTER,"Align Bottom" to VectorEditOps.Align.BOTTOM)
+        entries.forEachIndexed { i,e -> m.menu.add(0,i,i,e.first) }
+        m.setOnMenuItemClickListener { item -> if(!canvas.alignSelected(entries[item.itemId].second)) toast("Select at least two unlocked vector objects."); true }
+        m.show()
+    }
+
+    private fun showVectorDistributeMenu(anchor: View) {
+        val m=PopupMenu(this,anchor); m.menu.add(0,1,1,"Distribute Horizontally"); m.menu.add(0,2,2,"Distribute Vertically")
+        m.setOnMenuItemClickListener { item -> if(!canvas.distributeSelected(item.itemId==1)) toast("Select at least three unlocked vector objects."); true }; m.show()
     }
 
     private fun addVectorShape(ellipse: Boolean) {

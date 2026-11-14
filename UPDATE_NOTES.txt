@@ -1,12 +1,15 @@
-StitchDraw by Topz - Phase 3 compile hotfix
+StitchDraw by Topz — VecDraw Integration Phase 4
 
-Fix:
-- Added the missing android.graphics.RectF import in DesignCanvasView.kt.
-- Resolves the reported Kotlin compiler error at hitVector(): Unresolved reference 'RectF'.
+Added:
+- Pen / Bézier path construction with drag-created tangent handles and close/finish actions.
+- Independent node-anchor and Bézier-handle editing.
+- Cusp, Smooth and Symmetric node modes; symmetric-handle state is saved in vector project JSON.
+- Insert/delete node, split open paths, and join two selected open paths.
+- Multi-select, group move, object alignment and distribution controls.
+- Backward-compatible loading of older seven-value node records.
 
-Apply this ZIP at the repository root and commit/push the change.
-No keystore, signing configuration, Gradle files, or application IDs are changed.
+Preserved:
+- Existing StitchDraw workspace, embroidery engines, vector-to-stitch pipeline and .STD project container.
+- Existing signing configuration and keystore are not part of this patch and must remain untouched in the repository.
 
-Verification:
-- Source-level fix checked against the reported failing line.
-- Full Gradle/GitHub Actions build has not been run from this patch package; rerun Android CI after applying.
+Apply this ZIP at the repository root, commit/push, then run Android CI. Local Gradle build could not be completed in this environment because services.gradle.org was unreachable. Treat GitHub Actions as the authoritative compile/test result.

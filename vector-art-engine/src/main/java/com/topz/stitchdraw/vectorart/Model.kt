@@ -8,8 +8,8 @@ import java.io.ByteArrayOutputStream
 
 /** Bezier node: anchor (x,y), in-handle (ix,iy), out-handle (ox,oy). Handle == anchor means "no handle" (line). */
 class Node(var x: Float, var y: Float) {
-    var ix = x; var iy = y; var ox = x; var oy = y; var smooth = false
-    fun copy() = Node(x, y).also { it.ix = ix; it.iy = iy; it.ox = ox; it.oy = oy; it.smooth = smooth }
+    var ix = x; var iy = y; var ox = x; var oy = y; var smooth = false; var symmetric = false
+    fun copy() = Node(x, y).also { it.ix = ix; it.iy = iy; it.ox = ox; it.oy = oy; it.smooth = smooth; it.symmetric = symmetric }
     fun move(dx: Float, dy: Float) { x += dx; y += dy; ix += dx; iy += dy; ox += dx; oy += dy }
     fun outLine() = ox == x && oy == y
     fun inLine() = ix == x && iy == y
@@ -24,9 +24,9 @@ class SubPath(var nodes: MutableList<Node>, var closed: Boolean = true) {
     fun copy() = SubPath(nodes.map { it.copy() }.toMutableList(), closed)
 }
 
-private fun nodeToJson(n: Node) = JSONArray(listOf(n.x, n.y, n.ix, n.iy, n.ox, n.oy, if (n.smooth) 1f else 0f).map { it.toDouble() })
+private fun nodeToJson(n: Node) = JSONArray(listOf(n.x, n.y, n.ix, n.iy, n.ox, n.oy, if (n.smooth) 1f else 0f, if (n.symmetric) 1f else 0f).map { it.toDouble() })
 private fun nodeFromJson(a: JSONArray): Node = Node(a.getDouble(0).toFloat(), a.getDouble(1).toFloat()).also {
-    it.ix = a.getDouble(2).toFloat(); it.iy = a.getDouble(3).toFloat(); it.ox = a.getDouble(4).toFloat(); it.oy = a.getDouble(5).toFloat(); it.smooth = a.getDouble(6) > 0.5
+    it.ix = a.getDouble(2).toFloat(); it.iy = a.getDouble(3).toFloat(); it.ox = a.getDouble(4).toFloat(); it.oy = a.getDouble(5).toFloat(); it.smooth = a.getDouble(6) > 0.5; it.symmetric = a.length() > 7 && a.getDouble(7) > 0.5
 }
 
 enum class Kind { PATH, TEXT, IMAGE }
@@ -180,7 +180,7 @@ class VObj(var kind: Kind = Kind.PATH) {
         put("ga", gradAngle.toDouble()); put("sw", strokeW.toDouble()); put("cap", cap); put("jn", join); put("ds", dash)
         put("ar", arrow); put("a", alpha.toDouble()); put("sh", shadow); put("ly", layer); put("vis", visible); put("lk", locked)
         put("n", JSONArray().also { arr ->
-            nodes.forEach { n -> arr.put(JSONArray(listOf(n.x, n.y, n.ix, n.iy, n.ox, n.oy, if (n.smooth) 1f else 0f).map { it.toDouble() })) }
+            nodes.forEach { n -> arr.put(JSONArray(listOf(n.x, n.y, n.ix, n.iy, n.ox, n.oy, if (n.smooth) 1f else 0f, if (n.symmetric) 1f else 0f).map { it.toDouble() })) }
         })
         if (group != 0) put("gr", group)
         if (uid != 0) put("uid", uid)
@@ -224,7 +224,7 @@ class VObj(var kind: Kind = Kind.PATH) {
                 val a = arr.getJSONArray(i)
                 val n = Node(a.getDouble(0).toFloat(), a.getDouble(1).toFloat())
                 n.ix = a.getDouble(2).toFloat(); n.iy = a.getDouble(3).toFloat(); n.ox = a.getDouble(4).toFloat(); n.oy = a.getDouble(5).toFloat()
-                n.smooth = a.getDouble(6) > 0.5; o.nodes.add(n)
+                n.smooth = a.getDouble(6) > 0.5; n.symmetric = a.length() > 7 && a.getDouble(7) > 0.5; o.nodes.add(n)
             }
             o.group = j.optInt("gr"); o.uid = j.optInt("uid"); o.clipUid = j.optInt("cu")
             j.optJSONArray("holes")?.let { ha ->

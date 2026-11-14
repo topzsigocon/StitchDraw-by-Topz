@@ -6,9 +6,11 @@ import com.topz.stitchdraw.vectorart.VObj
 import com.topz.stitchdraw.vectorart.Kind as VectorKind
 import com.topz.stitchdraw.vectorart.Node as VectorNode
 import com.topz.stitchdraw.vectorart.Geo
+import com.topz.stitchdraw.vectorart.VectorEditOps
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
@@ -63,17 +65,25 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
     var showVectorArtwork: Boolean = true
         set(value) { field = value; invalidate() }
 
-    enum class VectorTool { OFF, SELECT, NODE, RECTANGLE, ELLIPSE, POLYGON, FREEHAND }
+    enum class VectorTool { OFF, SELECT, NODE, PEN, RECTANGLE, ELLIPSE, POLYGON, FREEHAND }
     var vectorTool: VectorTool = VectorTool.OFF
-        set(value) { field = value; vectorDraft.clear(); invalidate() }
+        set(value) { field = value; vectorDraft.clear(); penNodes.clear(); penActiveNode = -1; invalidate() }
     var selectedVectorUid: Int? = null
         private set
     private val vectorDraft = mutableListOf<Vec2>()
+    private val penNodes = mutableListOf<VectorNode>()
+    private var penActiveNode = -1
+    private var penClosed = false
+    private var activeHandle = 0 // 0 anchor, 1 incoming, 2 outgoing
+    var multiSelectMode = false
+        private set
+    private val selectedVectorIds = linkedSetOf<Int>()
+    fun selectedVectorUids(): Set<Int> = selectedVectorIds.toSet()
     private var vectorDown = Vec2.ZERO
     private var vectorDragging = false
     private var vectorNodeIndex = -1
     private var vectorSelectedDown = Vec2.ZERO
-    private var vectorOriginalNodes = emptyList<VectorNode>()
+    private var vectorOriginalGroup: Map<Int, VObj> = emptyMap()
     private val vectorSelectionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0xFF38D9FF.toInt(); strokeWidth = 0.45f; pathEffect = android.graphics.DashPathEffect(floatArrayOf(1.8f, 1.2f), 0f) }
     private val vectorHandlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFC857.toInt(); style = Paint.Style.FILL }
     private val vectorDraftPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF38D9FF.toInt(); style = Paint.Style.STROKE; strokeWidth = 0.55f; pathEffect = android.graphics.DashPathEffect(floatArrayOf(2f, 1.5f), 0f) }
@@ -195,11 +205,18 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
             canvas.save()
             canvas.translate(-doc.w / 2f, -doc.h / 2f)
             VectorRender.drawAll(canvas, doc)
-            selectedVectorUid?.let { uid ->
-                doc.objs.firstOrNull { it.uid == uid }?.let { obj ->
-                    canvas.drawPath(obj.path(), vectorSelectionPaint)
-                    if (vectorTool == VectorTool.NODE) obj.nodes.forEach { n -> canvas.drawCircle(n.x, n.y, 1.35f, vectorHandlePaint) }
+            selectedVectorIds.forEach { uid -> doc.objs.firstOrNull { it.uid == uid }?.let { obj -> canvas.drawPath(obj.path(), vectorSelectionPaint) } }
+            selectedVectorUid?.let { uid -> doc.objs.firstOrNull { it.uid == uid }?.let { obj ->
+                if (vectorTool == VectorTool.NODE) obj.nodes.forEach { n ->
+                    canvas.drawLine(n.x, n.y, n.ix, n.iy, vectorDraftPaint); canvas.drawLine(n.x, n.y, n.ox, n.oy, vectorDraftPaint)
+                    if (!n.inLine()) canvas.drawCircle(n.ix, n.iy, 0.9f, vectorHandlePaint)
+                    if (!n.outLine()) canvas.drawCircle(n.ox, n.oy, 0.9f, vectorHandlePaint)
+                    canvas.drawCircle(n.x, n.y, 1.35f, vectorHandlePaint)
                 }
+            } }
+            if (penNodes.isNotEmpty()) {
+                val pp = Path(); penNodes.forEachIndexed { i, n -> if (i == 0) pp.moveTo(n.x,n.y) else { val a=penNodes[i-1]; if(a.outLine() && n.inLine()) pp.lineTo(n.x,n.y) else pp.cubicTo(a.ox,a.oy,n.ix,n.iy,n.x,n.y) } }; canvas.drawPath(pp, vectorDraftPaint)
+                penNodes.forEach { n -> canvas.drawCircle(n.x,n.y,1.0f,vectorHandlePaint); if(!n.outLine()) { canvas.drawLine(n.x,n.y,n.ox,n.oy,vectorDraftPaint); canvas.drawCircle(n.ox,n.oy,0.8f,vectorHandlePaint) } }
             }
             if (vectorDraft.isNotEmpty()) {
                 val draftPath = Path()
@@ -475,21 +492,32 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
                 when (vectorTool) {
                     VectorTool.SELECT -> {
                         val hit = hitVector(vectorDown, doc)
-                        selectedVectorUid = hit?.uid
-                        if (hit != null && !isVectorLocked(hit, doc)) {
-                            vectorOriginalNodes = hit.nodes.map { it.copy() }
-                            vectorSelectedDown = vectorDown
+                        if (multiSelectMode) {
+                            if (hit != null) { if (hit.uid !in selectedVectorIds) selectedVectorIds.add(hit.uid); selectedVectorUid = hit.uid }
+                        } else {
+                            selectedVectorIds.clear(); hit?.let { selectedVectorIds.add(it.uid) }; selectedVectorUid = hit?.uid
+                        }
+                        if (hit != null && !isVectorLocked(hit, doc) && hit.uid in selectedVectorIds) {
+                            vectorOriginalGroup = selectedVectorIds.mapNotNull { id -> doc.objs.firstOrNull { it.uid == id && !isVectorLocked(it, doc) }?.let { id to it.copy() } }.toMap(); vectorSelectedDown = vectorDown
                         }
                         invalidate()
                     }
                     VectorTool.NODE -> {
                         val obj = selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid == id } }
                         if (obj != null && !isVectorLocked(obj, doc)) {
-                            vectorNodeIndex = obj.nodes.indices.minByOrNull { i ->
-                                val n = obj.nodes[i]; hypot(n.x - vectorDown.x, n.y - vectorDown.y)
-                            } ?: -1
-                            if (vectorNodeIndex >= 0 && hypot(obj.nodes[vectorNodeIndex].x - vectorDown.x, obj.nodes[vectorNodeIndex].y - vectorDown.y) > 5f) vectorNodeIndex = -1
+                            var best = 5f; vectorNodeIndex = -1; activeHandle = 0
+                            obj.nodes.forEachIndexed { i, n ->
+                                listOf(Triple(n.x,n.y,0), Triple(n.ix,n.iy,1), Triple(n.ox,n.oy,2)).forEach { (hx,hy,kind) ->
+                                    val dist = hypot(hx-vectorDown.x,hy-vectorDown.y); if (dist < best) { best=dist; vectorNodeIndex=i; activeHandle=kind }
+                                }
+                            }
                         }
+                    }
+                    VectorTool.PEN -> {
+                        if (penNodes.size >= 3 && hypot(penNodes.first().x-vectorDown.x, penNodes.first().y-vectorDown.y) < 4f) {
+                            finishPenPath(true); invalidate(); return true
+                        }
+                        penNodes.add(VectorNode(vectorDown.x, vectorDown.y)); penActiveNode = penNodes.lastIndex
                     }
                     VectorTool.FREEHAND -> vectorDraft.add(vectorDown)
                     else -> Unit
@@ -503,20 +531,30 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
                 when (vectorTool) {
                     VectorTool.SELECT -> {
                         val obj = selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid == id } }
-                        if (vectorDragging && obj != null && vectorOriginalNodes.isNotEmpty() && !isVectorLocked(obj, doc)) {
+                        if (vectorDragging && obj != null && vectorOriginalGroup.isNotEmpty() && !isVectorLocked(obj, doc)) {
                             val dx = p.x - vectorSelectedDown.x; val dy = p.y - vectorSelectedDown.y
-                            obj.nodes.forEachIndexed { i, n -> vectorOriginalNodes.getOrNull(i)?.let { n.x = it.x + dx; n.y = it.y + dy; n.ix = it.ix + dx; n.iy = it.iy + dy; n.ox = it.ox + dx; n.oy = it.oy + dy } }
+                            vectorOriginalGroup.forEach { (uid, original) ->
+                                val index=doc.objs.indexOfFirst { it.uid==uid }
+                                if(index>=0) doc.objs[index]=original.copy().also { copy -> copy.transform(Matrix().apply { setTranslate(dx,dy) }) }
+                            }
                             invalidate()
                         }
                     }
                     VectorTool.NODE -> {
                         val obj = selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid == id } }
                         if (vectorNodeIndex >= 0 && obj != null && !isVectorLocked(obj, doc)) {
-                            val n = obj.nodes[vectorNodeIndex]; val dx = p.x - n.x; val dy = p.y - n.y
-                            n.x = p.x; n.y = p.y
-                            if (n.smooth) { n.ix += dx; n.iy += dy; n.ox += dx; n.oy += dy }
+                            val n = obj.nodes[vectorNodeIndex]
+                            when (activeHandle) {
+                                1 -> VectorEditOps.moveHandle(n, false, p.x, p.y)
+                                2 -> VectorEditOps.moveHandle(n, true, p.x, p.y)
+                                else -> { val dx=p.x-n.x; val dy=p.y-n.y; n.move(dx,dy) }
+                            }
                             invalidate()
                         }
+                    }
+                    VectorTool.PEN -> if (penActiveNode in penNodes.indices && vectorDragging) {
+                        val n=penNodes[penActiveNode]; val dx=p.x-n.x; val dy=p.y-n.y
+                        n.ox=p.x; n.oy=p.y; n.ix=n.x-dx; n.iy=n.y-dy; n.smooth=true; n.symmetric=true; invalidate()
                     }
                     VectorTool.FREEHAND -> { if (vectorDraft.isEmpty() || hypot(p.x - vectorDraft.last().x, p.y - vectorDraft.last().y) > 0.7f) vectorDraft.add(p); invalidate() }
                     VectorTool.RECTANGLE, VectorTool.ELLIPSE, VectorTool.POLYGON -> { vectorDraft.clear(); vectorDraft.add(vectorDown); vectorDraft.add(p); invalidate() }
@@ -529,14 +567,15 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
                 when (vectorTool) {
                     VectorTool.RECTANGLE, VectorTool.ELLIPSE, VectorTool.POLYGON -> if (vectorDragging) createVectorShape(doc, vectorTool, vectorDown, p)
                     VectorTool.FREEHAND -> if (vectorDraft.size >= 2) createFreehand(doc)
+                    VectorTool.PEN -> { if (penActiveNode >= 0) { if (!vectorDragging) { val n=penNodes[penActiveNode]; n.ix=n.x; n.iy=n.y; n.ox=n.x; n.oy=n.y }; invalidate() } }
                     VectorTool.SELECT -> if (vectorDragging) onVectorChanged?.invoke()
-                    VectorTool.NODE -> if (vectorNodeIndex >= 0) onVectorChanged?.invoke()
+                    VectorTool.NODE -> { if (vectorNodeIndex >= 0) onVectorChanged?.invoke() else if (!vectorDragging) addNodeToSelected(vectorDown.x, vectorDown.y) }
                     else -> Unit
                 }
-                vectorDraft.clear(); vectorOriginalNodes = emptyList(); vectorNodeIndex = -1
+                vectorDraft.clear(); vectorOriginalGroup = emptyMap(); vectorNodeIndex = -1
                 invalidate(); return true
             }
-            MotionEvent.ACTION_CANCEL -> { vectorDraft.clear(); vectorOriginalNodes = emptyList(); vectorNodeIndex = -1; invalidate(); return true }
+            MotionEvent.ACTION_CANCEL -> { vectorDraft.clear(); vectorOriginalGroup = emptyMap(); vectorNodeIndex = -1; invalidate(); return true }
         }
         return true
     }
@@ -555,6 +594,66 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
                 b.contains(p.x, p.y) || obj.nodes.any { hypot(it.x - p.x, it.y - p.y) < 4f }
             }
         }
+    }
+
+    fun toggleMultiSelect() { multiSelectMode = !multiSelectMode; selectedVectorIds.clear(); selectedVectorUid = null; invalidate() }
+    fun clearVectorSelection() { selectedVectorIds.clear(); selectedVectorUid = null; invalidate() }
+
+    fun finishPenPath(closed: Boolean = false): Boolean {
+        val doc=vectorDocument ?: return false
+        if (penNodes.size < 2) { penNodes.clear(); penActiveNode=-1; invalidate(); return false }
+        val nodes=penNodes.map { it.copy() }.toMutableList()
+        addVectorObject(doc,nodes,closed,"Pen Path ${doc.objs.size+1}")
+        penNodes.clear(); penActiveNode=-1; invalidate(); return true
+    }
+
+    fun addNodeToSelected(x: Float, y: Float): Boolean {
+        val doc=vectorDocument ?: return false; val obj=selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid==id } } ?: return false
+        if (isVectorLocked(obj,doc)) return false
+        val index=VectorEditOps.insertNode(obj,x,y); if(index>=0){ vectorNodeIndex=index; onVectorChanged?.invoke(); invalidate(); return true }; return false
+    }
+
+    fun deleteSelectedNode(): Boolean {
+        val doc=vectorDocument ?: return false; val obj=selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid==id } } ?: return false
+        if(isVectorLocked(obj,doc) || !VectorEditOps.deleteNode(obj,vectorNodeIndex)) return false
+        vectorNodeIndex=-1; onVectorChanged?.invoke(); invalidate(); return true
+    }
+
+    fun setSelectedNodeMode(mode: VectorEditOps.HandleMode): Boolean {
+        val doc=vectorDocument ?: return false; val obj=selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid==id } } ?: return false
+        val node=obj.nodes.getOrNull(vectorNodeIndex) ?: return false
+        if(isVectorLocked(obj,doc)) return false
+        val prev=obj.nodes.getOrNull(if(vectorNodeIndex>0) vectorNodeIndex-1 else if(obj.closed) obj.nodes.lastIndex else -1); val next=obj.nodes.getOrNull(if(vectorNodeIndex<obj.nodes.lastIndex) vectorNodeIndex+1 else if(obj.closed) 0 else -1); VectorEditOps.setHandleMode(node,mode,prev,next); onVectorChanged?.invoke(); invalidate(); return true
+    }
+
+    fun joinSelectedPaths(): Boolean {
+        val doc=vectorDocument ?: return false
+        val ids=selectedVectorIds.toList(); if(ids.size!=2) return false
+        val a=doc.objs.firstOrNull { it.uid==ids[0] } ?: return false
+        val b=doc.objs.firstOrNull { it.uid==ids[1] } ?: return false
+        if(isVectorLocked(a,doc)||isVectorLocked(b,doc)||!VectorEditOps.joinPaths(a,b)) return false
+        doc.objs.remove(b); selectedVectorUid=a.uid; selectedVectorIds.clear(); selectedVectorIds.add(a.uid)
+        onVectorChanged?.invoke(); invalidate(); return true
+    }
+
+    fun splitSelectedPath(): Boolean {
+        val doc=vectorDocument ?: return false; val obj=selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid==id } } ?: return false
+        if(isVectorLocked(obj,doc)) return false
+        val second=VectorEditOps.splitPath(doc,obj,vectorNodeIndex) ?: return false
+        selectedVectorUid=second.uid; selectedVectorIds.clear(); selectedVectorIds.add(second.uid); vectorNodeIndex=0
+        onVectorChanged?.invoke(); invalidate(); return true
+    }
+
+    fun alignSelected(mode: VectorEditOps.Align): Boolean {
+        val doc=vectorDocument ?: return false
+        val ids=if(selectedVectorIds.isNotEmpty()) selectedVectorIds else setOfNotNull(selectedVectorUid)
+        val ok=VectorEditOps.align(doc,ids,mode); if(ok){onVectorChanged?.invoke();invalidate()}; return ok
+    }
+
+    fun distributeSelected(horizontal: Boolean): Boolean {
+        val doc=vectorDocument ?: return false
+        val ids=if(selectedVectorIds.isNotEmpty()) selectedVectorIds else setOfNotNull(selectedVectorUid)
+        val ok=VectorEditOps.distribute(doc,ids,horizontal); if(ok){onVectorChanged?.invoke();invalidate()}; return ok
     }
 
     private fun createVectorShape(doc: Doc, tool: VectorTool, a: Vec2, b: Vec2) {
@@ -584,7 +683,7 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
             fill = if (closed) 0x332D8CFF else null; stroke = 0xFFFFC857.toInt(); strokeW = 0.45f; this.layer = layer
             uid = (doc.objs.maxOfOrNull { it.uid } ?: 0) + 1
         }
-        doc.objs.add(obj); selectedVectorUid = obj.uid; onVectorChanged?.invoke(); invalidate()
+        doc.objs.add(obj); selectedVectorUid = obj.uid; selectedVectorIds.clear(); selectedVectorIds.add(obj.uid); onVectorChanged?.invoke(); invalidate()
     }
 
     fun deleteSelectedVector(): Boolean {
@@ -592,7 +691,7 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
         val id = selectedVectorUid ?: return false
         val obj = doc.objs.firstOrNull { it.uid == id } ?: return false
         if (isVectorLocked(obj, doc)) return false
-        doc.objs.remove(obj); selectedVectorUid = null; onVectorChanged?.invoke(); invalidate(); return true
+        doc.objs.remove(obj); selectedVectorIds.remove(id); selectedVectorUid = selectedVectorIds.lastOrNull(); onVectorChanged?.invoke(); invalidate(); return true
     }
 
     private fun centroidX(e: MotionEvent): Float { var s = 0f; for (i in 0 until e.pointerCount) s += e.getX(i); return s / e.pointerCount }
