@@ -1,0 +1,106 @@
+run=43575217364 commit=1dec5d7 build-job=success
+
+=== JOBS OF THIS RUN ===
+132387868530  build  completed  success
+132388256996  report  in_progress  null
+
+=== STEPS OF THE BUILD JOB ===
+1. Set up job: success
+2. Run actions/checkout@v5: success
+3. Check that the project is unpacked: success
+4. Run actions/setup-java@v5: success
+5. Run gradle/actions/setup-gradle@v4: success
+6. Make wrapper executable: success
+7. Unit tests (engines + workspace): success
+8. Build debug APK: success
+9. Publish APK artifact: success
+10. Publish gradle logs: success
+11. Publish test reports: success
+12. Fail the job if tests or build failed: skipped
+22. Post Run gradle/actions/setup-gradle@v4: success
+23. Post Run actions/setup-java@v5: success
+24. Post Run actions/checkout@v5: success
+25. Complete job: success
+
+=== API ERRORS (if any) ===
+
+=== FILES IN THE REPO ROOT AT THIS COMMIT ===
+.
+..
+.git
+.github
+.gitignore
+README.md
+UPDATE_NOTES.txt
+app
+build.gradle.kts
+core
+digitizing-engine
+docs
+embroidery-engine
+export-engine
+file-engine
+gradle
+gradle.properties
+gradlew
+gradlew.bat
+rendering-engine
+settings.gradle.kts
+tools
+vector-art-engine
+vector-engine
+workspace
+
+=== ERROR LINES IN THE BUILD JOB LOG ===
+
+=== LAST 40 LINES OF THE BUILD JOB LOG ===
+> Task :vector-art-engine:packageDebugAssets
+> Task :vector-art-engine:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :rendering-engine:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets FROM-CACHE
+> Task :app:desugarDebugFileDependencies FROM-CACHE
+> Task :rendering-engine:processDebugJavaRes UP-TO-DATE
+> Task :vector-art-engine:processDebugJavaRes UP-TO-DATE
+> Task :rendering-engine:bundleLibRuntimeToDirDebug
+> Task :vector-art-engine:bundleLibRuntimeToDirDebug
+> Task :rendering-engine:mergeDebugJniLibFolders
+> Task :rendering-engine:mergeDebugNativeLibs NO-SOURCE
+> Task :rendering-engine:copyDebugJniLibsProjectOnly
+> Task :vector-art-engine:mergeDebugJniLibFolders
+> Task :vector-art-engine:mergeDebugNativeLibs NO-SOURCE
+> Task :vector-art-engine:copyDebugJniLibsProjectOnly
+> Task :app:dexBuilderDebug
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeExtDexDebug FROM-CACHE
+> Task :app:mergeDebugGlobalSynthetics FROM-CACHE
+> Task :app:mergeDebugJniLibFolders
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:mergeDebugJavaResource
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:mergeProjectDexDebug
+> Task :app:mergeLibDexDebug
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/build-1794644385520.json
+
+BUILD SUCCESSFUL in 6s
+85 actionable tasks: 23 executed, 4 from cache, 58 up-to-date
+
+=== RECENT RUNS OF ALL WORKFLOWS ===
+43575217364  Android CI  workflow_run    1dec5d7
+43575200950  Unpack update.zip  push  success  684e001
+43575200838  Android CI  push  success  684e001
+43573912878  Android CI  workflow_run  success  a362741
+43573895628  Android CI  push  success  80eed1e
+43573895530  Unpack update.zip  push  success  80eed1e
+43572670449  Android CI  workflow_run  success  82ba004
+43572658909  Unpack update.zip  push  success  00eab13

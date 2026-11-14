@@ -1,0 +1,404 @@
+Downloading https://services.gradle.org/distributions/gradle-8.14.3-bin.zip
+.............10%.............20%.............30%.............40%.............50%.............60%.............70%.............80%.............90%..............100%
+Starting a Gradle Daemon (subsequent builds will be faster)
+> Task :workspace:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vector-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :embroidery-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :embroidery-engine:processResources NO-SOURCE
+> Task :workspace:processResources NO-SOURCE
+> Task :vector-engine:processResources NO-SOURCE
+> Task :file-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :export-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :export-engine:processResources NO-SOURCE
+> Task :file-engine:processResources NO-SOURCE
+> Task :digitizing-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :rendering-engine:preBuild UP-TO-DATE
+> Task :vector-art-engine:preBuild UP-TO-DATE
+> Task :rendering-engine:preDebugBuild UP-TO-DATE
+> Task :digitizing-engine:processResources NO-SOURCE
+> Task :vector-art-engine:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugResValues FROM-CACHE
+> Task :app:generateDebugResources FROM-CACHE
+> Task :vector-art-engine:writeDebugAarMetadata
+> Task :app:packageDebugResources FROM-CACHE
+> Task :rendering-engine:writeDebugAarMetadata
+> Task :rendering-engine:generateDebugResValues FROM-CACHE
+> Task :vector-art-engine:generateDebugResValues FROM-CACHE
+> Task :core:compileKotlin FROM-CACHE
+> Task :core:compileJava NO-SOURCE
+> Task :vector-art-engine:generateDebugResources FROM-CACHE
+> Task :core:processResources NO-SOURCE
+> Task :core:classes UP-TO-DATE
+> Task :rendering-engine:generateDebugResources FROM-CACHE
+> Task :vector-art-engine:packageDebugResources FROM-CACHE
+> Task :vector-art-engine:extractDeepLinksDebug FROM-CACHE
+> Task :rendering-engine:packageDebugResources FROM-CACHE
+> Task :rendering-engine:extractDeepLinksDebug FROM-CACHE
+> Task :vector-art-engine:processDebugManifest FROM-CACHE
+> Task :vector-art-engine:compileDebugLibraryResources FROM-CACHE
+> Task :rendering-engine:processDebugManifest FROM-CACHE
+> Task :rendering-engine:compileDebugLibraryResources FROM-CACHE
+> Task :vector-art-engine:parseDebugLocalResources FROM-CACHE
+> Task :rendering-engine:parseDebugLocalResources FROM-CACHE
+> Task :app:parseDebugLocalResources FROM-CACHE
+> Task :vector-art-engine:generateDebugRFile FROM-CACHE
+> Task :vector-art-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vector-art-engine:javaPreCompileDebug FROM-CACHE
+> Task :vector-art-engine:preReleaseBuild UP-TO-DATE
+> Task :rendering-engine:generateDebugRFile FROM-CACHE
+> Task :rendering-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:checkDebugAarMetadata
+> Task :rendering-engine:javaPreCompileDebug FROM-CACHE
+> Task :rendering-engine:preReleaseBuild UP-TO-DATE
+> Task :vector-art-engine:writeReleaseAarMetadata
+> Task :rendering-engine:writeReleaseAarMetadata
+> Task :vector-art-engine:generateReleaseResValues FROM-CACHE
+> Task :rendering-engine:generateReleaseResValues FROM-CACHE
+> Task :rendering-engine:generateReleaseResources FROM-CACHE
+> Task :vector-art-engine:generateReleaseResources FROM-CACHE
+> Task :app:mapDebugSourceSetPaths
+> Task :core:jar
+> Task :rendering-engine:packageReleaseResources FROM-CACHE
+> Task :vector-art-engine:packageReleaseResources FROM-CACHE
+> Task :app:mergeDebugResources FROM-CACHE
+> Task :rendering-engine:extractDeepLinksRelease FROM-CACHE
+> Task :app:createDebugCompatibleScreenManifests
+> Task :rendering-engine:processReleaseManifest FROM-CACHE
+> Task :app:extractDeepLinksDebug FROM-CACHE
+> Task :workspace:compileKotlin FROM-CACHE
+> Task :workspace:compileJava NO-SOURCE
+> Task :workspace:classes UP-TO-DATE
+> Task :vector-art-engine:extractDeepLinksRelease FROM-CACHE
+> Task :vector-art-engine:processReleaseManifest FROM-CACHE
+> Task :vector-engine:compileKotlin FROM-CACHE
+> Task :vector-engine:compileJava NO-SOURCE
+> Task :vector-engine:classes UP-TO-DATE
+> Task :rendering-engine:compileReleaseLibraryResources FROM-CACHE
+> Task :rendering-engine:parseReleaseLocalResources FROM-CACHE
+> Task :rendering-engine:generateReleaseRFile FROM-CACHE
+> Task :vector-engine:jar
+> Task :vector-art-engine:compileReleaseLibraryResources FROM-CACHE
+> Task :workspace:jar
+> Task :rendering-engine:javaPreCompileRelease FROM-CACHE
+> Task :vector-art-engine:parseReleaseLocalResources FROM-CACHE
+> Task :vector-art-engine:generateReleaseRFile FROM-CACHE
+> Task :vector-art-engine:javaPreCompileRelease FROM-CACHE
+> Task :digitizing-engine:processTestResources NO-SOURCE
+> Task :export-engine:processTestResources NO-SOURCE
+> Task :file-engine:processTestResources NO-SOURCE
+> Task :rendering-engine:preDebugUnitTestBuild UP-TO-DATE
+> Task :embroidery-engine:compileKotlin FROM-CACHE
+> Task :embroidery-engine:compileJava NO-SOURCE
+> Task :embroidery-engine:classes UP-TO-DATE
+> Task :rendering-engine:generateDebugUnitTestStubRFile FROM-CACHE
+> Task :rendering-engine:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :rendering-engine:preReleaseUnitTestBuild UP-TO-DATE
+> Task :rendering-engine:generateReleaseUnitTestStubRFile FROM-CACHE
+> Task :rendering-engine:javaPreCompileReleaseUnitTest FROM-CACHE
+> Task :vector-art-engine:preDebugUnitTestBuild UP-TO-DATE
+> Task :core:compileTestKotlin FROM-CACHE
+> Task :core:compileTestJava NO-SOURCE
+> Task :vector-art-engine:generateDebugUnitTestStubRFile FROM-CACHE
+> Task :core:processTestResources NO-SOURCE
+> Task :core:testClasses UP-TO-DATE
+> Task :vector-art-engine:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :vector-art-engine:preReleaseUnitTestBuild UP-TO-DATE
+> Task :embroidery-engine:jar
+> Task :vector-art-engine:generateReleaseUnitTestStubRFile FROM-CACHE
+> Task :core:test FROM-CACHE
+> Task :file-engine:compileKotlin FROM-CACHE
+> Task :file-engine:compileJava NO-SOURCE
+> Task :file-engine:classes UP-TO-DATE
+> Task :file-engine:jar
+> Task :export-engine:compileKotlin FROM-CACHE
+> Task :export-engine:compileJava NO-SOURCE
+> Task :export-engine:classes UP-TO-DATE
+> Task :digitizing-engine:compileKotlin FROM-CACHE
+> Task :digitizing-engine:compileJava NO-SOURCE
+> Task :digitizing-engine:classes UP-TO-DATE
+> Task :export-engine:jar
+> Task :digitizing-engine:jar
+> Task :app:processDebugMainManifest
+> Task :rendering-engine:compileDebugKotlin FROM-CACHE
+> Task :rendering-engine:compileDebugJavaWithJavac NO-SOURCE
+> Task :digitizing-engine:compileTestKotlin FROM-CACHE
+> Task :rendering-engine:bundleLibRuntimeToJarDebug
+> Task :rendering-engine:bundleLibCompileToJarDebug
+> Task :digitizing-engine:compileTestJava NO-SOURCE
+> Task :digitizing-engine:testClasses UP-TO-DATE
+> Task :rendering-engine:processDebugJavaRes
+> Task :digitizing-engine:test FROM-CACHE
+> Task :rendering-engine:compileReleaseKotlin FROM-CACHE
+> Task :rendering-engine:compileReleaseJavaWithJavac NO-SOURCE
+> Task :rendering-engine:bundleLibCompileToJarRelease
+> Task :rendering-engine:bundleLibRuntimeToJarRelease
+> Task :rendering-engine:processReleaseJavaRes
+> Task :embroidery-engine:compileTestKotlin FROM-CACHE
+> Task :app:processDebugManifest
+> Task :embroidery-engine:compileTestJava NO-SOURCE
+> Task :embroidery-engine:processTestResources NO-SOURCE
+> Task :embroidery-engine:testClasses UP-TO-DATE
+> Task :export-engine:compileTestKotlin FROM-CACHE
+> Task :export-engine:compileTestJava NO-SOURCE
+> Task :export-engine:testClasses UP-TO-DATE
+> Task :embroidery-engine:test FROM-CACHE
+> Task :app:processDebugManifestForPackage
+> Task :export-engine:test FROM-CACHE
+> Task :rendering-engine:compileDebugUnitTestKotlin NO-SOURCE
+> Task :rendering-engine:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :rendering-engine:processDebugUnitTestJavaRes NO-SOURCE
+> Task :rendering-engine:testDebugUnitTest NO-SOURCE
+> Task :rendering-engine:compileReleaseUnitTestKotlin NO-SOURCE
+> Task :rendering-engine:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :rendering-engine:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :file-engine:compileTestKotlin FROM-CACHE
+> Task :rendering-engine:testReleaseUnitTest NO-SOURCE
+> Task :rendering-engine:test UP-TO-DATE
+> Task :file-engine:compileTestJava NO-SOURCE
+> Task :file-engine:testClasses UP-TO-DATE
+> Task :file-engine:test FROM-CACHE
+> Task :app:javaPreCompileDebug FROM-CACHE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :vector-engine:compileTestKotlin FROM-CACHE
+> Task :vector-engine:compileTestJava NO-SOURCE
+> Task :vector-engine:processTestResources NO-SOURCE
+> Task :vector-engine:testClasses UP-TO-DATE
+> Task :vector-engine:test FROM-CACHE
+> Task :app:buildKotlinToolingMetadata
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :workspace:compileTestKotlin FROM-CACHE
+> Task :workspace:compileTestJava NO-SOURCE
+> Task :workspace:processTestResources NO-SOURCE
+> Task :workspace:testClasses UP-TO-DATE
+> Task :workspace:test FROM-CACHE
+> Task :app:checkReleaseAarMetadata
+> Task :app:generateReleaseResValues FROM-CACHE
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources FROM-CACHE
+> Task :app:mergeReleaseResources FROM-CACHE
+> Task :app:packageReleaseResources FROM-CACHE
+> Task :app:parseReleaseLocalResources FROM-CACHE
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease FROM-CACHE
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:javaPreCompileRelease FROM-CACHE
+> Task :app:processReleaseManifestForPackage
+> Task :app:preReleaseUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileReleaseUnitTest FROM-CACHE
+> Task :app:processDebugResources
+> Task :vector-art-engine:javaPreCompileReleaseUnitTest FROM-CACHE
+> Task :app:processReleaseResources
+
+> Task :vector-art-engine:compileReleaseKotlin
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/vector-art-engine/src/main/java/com/topz/stitchdraw/vectorart/Model.kt:123:63 'fun computeBounds(p0: RectF, p1: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/vector-art-engine/src/main/java/com/topz/stitchdraw/vectorart/Render.kt:99:29 'fun computeBounds(p0: RectF, p1: Boolean): Unit' is deprecated. Deprecated in Java.
+
+> Task :vector-art-engine:compileReleaseJavaWithJavac NO-SOURCE
+
+> Task :vector-art-engine:compileDebugKotlin
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/vector-art-engine/src/main/java/com/topz/stitchdraw/vectorart/Model.kt:123:63 'fun computeBounds(p0: RectF, p1: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/vector-art-engine/src/main/java/com/topz/stitchdraw/vectorart/Render.kt:99:29 'fun computeBounds(p0: RectF, p1: Boolean): Unit' is deprecated. Deprecated in Java.
+
+> Task :vector-art-engine:bundleLibCompileToJarRelease
+> Task :vector-art-engine:compileDebugJavaWithJavac NO-SOURCE
+> Task :vector-art-engine:bundleLibRuntimeToJarRelease
+> Task :vector-art-engine:bundleLibCompileToJarDebug
+> Task :vector-art-engine:bundleLibRuntimeToJarDebug
+> Task :vector-art-engine:processDebugJavaRes
+> Task :vector-art-engine:processReleaseJavaRes
+> Task :vector-art-engine:compileDebugUnitTestKotlin NO-SOURCE
+> Task :vector-art-engine:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :vector-art-engine:processDebugUnitTestJavaRes NO-SOURCE
+> Task :vector-art-engine:testDebugUnitTest NO-SOURCE
+> Task :vector-art-engine:compileReleaseUnitTestKotlin NO-SOURCE
+> Task :vector-art-engine:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :vector-art-engine:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :vector-art-engine:testReleaseUnitTest NO-SOURCE
+> Task :vector-art-engine:test UP-TO-DATE
+
+> Task :app:compileReleaseKotlin
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/app/src/main/kotlin/com/topz/stitchdraw/app/DesignCanvasView.kt:601:45 'fun computeBounds(p0: RectF, p1: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/app/src/main/kotlin/com/topz/stitchdraw/app/DesignCanvasView.kt:763:61 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/app/src/main/kotlin/com/topz/stitchdraw/app/MainActivity.kt:191:104 'fun onBackPressed(): Unit' is deprecated. Deprecated in Java.
+
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/app/src/main/kotlin/com/topz/stitchdraw/app/DesignCanvasView.kt:601:45 'fun computeBounds(p0: RectF, p1: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/app/src/main/kotlin/com/topz/stitchdraw/app/DesignCanvasView.kt:763:61 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/app/src/main/kotlin/com/topz/stitchdraw/app/MainActivity.kt:191:104 'fun onBackPressed(): Unit' is deprecated. Deprecated in Java.
+
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:processDebugJavaRes
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:compileReleaseJavaWithJavac NO-SOURCE
+> Task :app:compileDebugUnitTestKotlin NO-SOURCE
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes NO-SOURCE
+> Task :app:testDebugUnitTest NO-SOURCE
+> Task :app:bundleReleaseClassesToCompileJar
+> Task :app:bundleReleaseClassesToRuntimeJar
+> Task :app:processReleaseJavaRes
+> Task :app:compileReleaseUnitTestKotlin NO-SOURCE
+> Task :app:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processReleaseUnitTestJavaRes NO-SOURCE
+> Task :app:testReleaseUnitTest NO-SOURCE
+> Task :app:test UP-TO-DATE
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/tests-1794644347774.json
+
+[Incubating] Problems report is available at: file:///home/runner/work/StitchDraw-by-Topz/StitchDraw-by-Topz/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 46s
+131 actionable tasks: 48 executed, 83 from cache
+> Task :embroidery-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vector-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :workspace:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :workspace:processResources NO-SOURCE
+> Task :embroidery-engine:processResources NO-SOURCE
+> Task :file-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vector-engine:processResources NO-SOURCE
+> Task :file-engine:processResources NO-SOURCE
+> Task :digitizing-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :export-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :export-engine:processResources NO-SOURCE
+> Task :rendering-engine:preBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vector-art-engine:preBuild UP-TO-DATE
+> Task :digitizing-engine:processResources NO-SOURCE
+> Task :vector-art-engine:preDebugBuild UP-TO-DATE
+> Task :rendering-engine:preDebugBuild UP-TO-DATE
+> Task :vector-art-engine:writeDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :rendering-engine:writeDebugAarMetadata UP-TO-DATE
+> Task :rendering-engine:generateDebugResValues UP-TO-DATE
+> Task :vector-art-engine:generateDebugResValues UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :rendering-engine:generateDebugResources UP-TO-DATE
+> Task :vector-art-engine:generateDebugResources UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :core:compileKotlin UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :vector-art-engine:packageDebugResources UP-TO-DATE
+> Task :rendering-engine:packageDebugResources UP-TO-DATE
+> Task :core:compileJava NO-SOURCE
+> Task :rendering-engine:extractDeepLinksDebug UP-TO-DATE
+> Task :vector-art-engine:extractDeepLinksDebug UP-TO-DATE
+> Task :core:processResources NO-SOURCE
+> Task :core:classes UP-TO-DATE
+> Task :vector-art-engine:processDebugManifest UP-TO-DATE
+> Task :rendering-engine:processDebugManifest UP-TO-DATE
+> Task :core:jar UP-TO-DATE
+> Task :vector-art-engine:compileDebugLibraryResources UP-TO-DATE
+> Task :rendering-engine:compileDebugLibraryResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :workspace:compileKotlin UP-TO-DATE
+> Task :rendering-engine:parseDebugLocalResources UP-TO-DATE
+> Task :workspace:compileJava NO-SOURCE
+> Task :workspace:classes UP-TO-DATE
+> Task :workspace:jar UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :rendering-engine:generateDebugRFile UP-TO-DATE
+> Task :rendering-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :rendering-engine:javaPreCompileDebug UP-TO-DATE
+> Task :vector-art-engine:parseDebugLocalResources UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :vector-engine:compileKotlin UP-TO-DATE
+> Task :vector-engine:compileJava NO-SOURCE
+> Task :vector-engine:classes UP-TO-DATE
+> Task :vector-engine:jar UP-TO-DATE
+> Task :vector-art-engine:generateDebugRFile UP-TO-DATE
+> Task :vector-art-engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :vector-art-engine:javaPreCompileDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :embroidery-engine:compileKotlin UP-TO-DATE
+> Task :embroidery-engine:compileJava NO-SOURCE
+> Task :embroidery-engine:classes UP-TO-DATE
+> Task :embroidery-engine:jar UP-TO-DATE
+> Task :file-engine:compileKotlin UP-TO-DATE
+> Task :file-engine:compileJava NO-SOURCE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :file-engine:classes UP-TO-DATE
+> Task :file-engine:jar UP-TO-DATE
+> Task :rendering-engine:mergeDebugShaders
+> Task :vector-art-engine:mergeDebugShaders
+> Task :export-engine:compileKotlin UP-TO-DATE
+> Task :digitizing-engine:compileKotlin UP-TO-DATE
+> Task :export-engine:compileJava NO-SOURCE
+> Task :export-engine:classes UP-TO-DATE
+> Task :digitizing-engine:compileJava NO-SOURCE
+> Task :digitizing-engine:classes UP-TO-DATE
+> Task :export-engine:jar UP-TO-DATE
+> Task :digitizing-engine:jar UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :rendering-engine:compileDebugKotlin UP-TO-DATE
+> Task :rendering-engine:compileDebugJavaWithJavac NO-SOURCE
+> Task :rendering-engine:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :rendering-engine:compileDebugShaders NO-SOURCE
+> Task :rendering-engine:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugShaders
+> Task :vector-art-engine:compileDebugKotlin UP-TO-DATE
+> Task :rendering-engine:packageDebugAssets
+> Task :vector-art-engine:compileDebugJavaWithJavac NO-SOURCE
+> Task :vector-art-engine:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :vector-art-engine:compileDebugShaders NO-SOURCE
+> Task :vector-art-engine:generateDebugAssets UP-TO-DATE
+> Task :vector-art-engine:packageDebugAssets
+> Task :vector-art-engine:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :rendering-engine:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets FROM-CACHE
+> Task :app:desugarDebugFileDependencies FROM-CACHE
+> Task :rendering-engine:processDebugJavaRes UP-TO-DATE
+> Task :vector-art-engine:processDebugJavaRes UP-TO-DATE
+> Task :rendering-engine:bundleLibRuntimeToDirDebug
+> Task :vector-art-engine:bundleLibRuntimeToDirDebug
+> Task :rendering-engine:mergeDebugJniLibFolders
+> Task :rendering-engine:mergeDebugNativeLibs NO-SOURCE
+> Task :rendering-engine:copyDebugJniLibsProjectOnly
+> Task :vector-art-engine:mergeDebugJniLibFolders
+> Task :vector-art-engine:mergeDebugNativeLibs NO-SOURCE
+> Task :vector-art-engine:copyDebugJniLibsProjectOnly
+> Task :app:dexBuilderDebug
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeExtDexDebug FROM-CACHE
+> Task :app:mergeDebugGlobalSynthetics FROM-CACHE
+> Task :app:mergeDebugJniLibFolders
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:mergeDebugJavaResource
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:mergeProjectDexDebug
+> Task :app:mergeLibDexDebug
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/build-1794644385520.json
+
+BUILD SUCCESSFUL in 6s
+85 actionable tasks: 23 executed, 4 from cache, 58 up-to-date
