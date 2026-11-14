@@ -2,6 +2,10 @@ package com.topz.stitchdraw.app
 
 import com.topz.stitchdraw.vectorart.Doc
 import com.topz.stitchdraw.vectorart.Render as VectorRender
+import com.topz.stitchdraw.vectorart.VObj
+import com.topz.stitchdraw.vectorart.Kind as VectorKind
+import com.topz.stitchdraw.vectorart.Node as VectorNode
+import com.topz.stitchdraw.vectorart.Geo
 
 import android.content.Context
 import android.graphics.Canvas
@@ -57,6 +61,23 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
         set(value) { field = value; invalidate() }
     var showVectorArtwork: Boolean = true
         set(value) { field = value; invalidate() }
+
+    enum class VectorTool { OFF, SELECT, NODE, RECTANGLE, ELLIPSE, POLYGON, FREEHAND }
+    var vectorTool: VectorTool = VectorTool.OFF
+        set(value) { field = value; vectorDraft.clear(); invalidate() }
+    var selectedVectorUid: Int? = null
+        private set
+    private val vectorDraft = mutableListOf<Vec2>()
+    private var vectorDown = Vec2.ZERO
+    private var vectorDragging = false
+    private var vectorNodeIndex = -1
+    private var vectorSelectedDown = Vec2.ZERO
+    private var vectorOriginalNodes = emptyList<VectorNode>()
+    private val vectorSelectionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0xFF38D9FF.toInt(); strokeWidth = 0.45f; pathEffect = android.graphics.DashPathEffect(floatArrayOf(1.8f, 1.2f), 0f) }
+    private val vectorHandlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFC857.toInt(); style = Paint.Style.FILL }
+    private val vectorDraftPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF38D9FF.toInt(); style = Paint.Style.STROKE; strokeWidth = 0.55f; pathEffect = android.graphics.DashPathEffect(floatArrayOf(2f, 1.5f), 0f) }
+    var onVectorChanged: (() -> Unit)? = null
+
 
     /** Non-null while the simulator is open: the canvas shows the sewn result up to the playback position. */
     var playback: Playback? = null
@@ -173,6 +194,31 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
             canvas.save()
             canvas.translate(-doc.w / 2f, -doc.h / 2f)
             VectorRender.drawAll(canvas, doc)
+            selectedVectorUid?.let { uid ->
+                doc.objs.firstOrNull { it.uid == uid }?.let { obj ->
+                    canvas.drawPath(obj.path(), vectorSelectionPaint)
+                    if (vectorTool == VectorTool.NODE) obj.nodes.forEach { n -> canvas.drawCircle(n.x, n.y, 1.35f, vectorHandlePaint) }
+                }
+            }
+            if (vectorDraft.isNotEmpty()) {
+                val draftPath = Path()
+                if (vectorDraft.size >= 2 && vectorTool in setOf(VectorTool.RECTANGLE, VectorTool.ELLIPSE, VectorTool.POLYGON)) {
+                    val a = vectorDraft.first(); val b = vectorDraft.last()
+                    val l = min(a.x, b.x); val r = max(a.x, b.x); val t = min(a.y, b.y); val bot = max(a.y, b.y)
+                    when (vectorTool) {
+                        VectorTool.RECTANGLE -> draftPath.addRect(l, t, r, bot, Path.Direction.CW)
+                        VectorTool.ELLIPSE -> draftPath.addOval(l, t, r, bot, Path.Direction.CW)
+                        VectorTool.POLYGON -> {
+                            val pts = Geo.polygon((l+r)/2f, (t+bot)/2f, hypot(r-l, bot-t)/2f, -Math.PI.toFloat()/2f, 6)
+                            pts.forEachIndexed { i, n -> if (i == 0) draftPath.moveTo(n.x, n.y) else draftPath.lineTo(n.x, n.y) }; draftPath.close()
+                        }
+                        else -> Unit
+                    }
+                } else {
+                    vectorDraft.forEachIndexed { i, p -> if (i == 0) draftPath.moveTo(p.x, p.y) else draftPath.lineTo(p.x, p.y) }
+                }
+                canvas.drawPath(draftPath, vectorDraftPaint)
+            }
             canvas.restore()
         }
         val pb = playback
@@ -357,7 +403,7 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
 
     private val gestures = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onLongPress(e: MotionEvent) {
-            if (multiTouch || dragging || playback != null) return
+            if (multiTouch || dragging || playback != null || vectorTool != VectorTool.OFF) return
             longPressFired = true
             val p = toDesign(e.x, e.y)
             val hit = session.hitTest(p, hitSlop / scale)
@@ -371,6 +417,7 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
     override fun onTouchEvent(e: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(e)
         gestures.onTouchEvent(e)
+        if (vectorTool != VectorTool.OFF && playback == null) return handleVectorTouch(e)
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 parent?.requestDisallowInterceptTouchEvent(true)
@@ -412,6 +459,139 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
             }
         }
         return true
+    }
+
+    private fun handleVectorTouch(e: MotionEvent): Boolean {
+        val doc = vectorDocument ?: return true
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                parent?.requestDisallowInterceptTouchEvent(true)
+                downX = e.x; downY = e.y
+                vectorDown = toVectorDoc(e.x, e.y, doc)
+                vectorDragging = false
+                vectorDraft.clear()
+                vectorNodeIndex = -1
+                when (vectorTool) {
+                    VectorTool.SELECT -> {
+                        val hit = hitVector(vectorDown, doc)
+                        selectedVectorUid = hit?.uid
+                        if (hit != null && !isVectorLocked(hit, doc)) {
+                            vectorOriginalNodes = hit.nodes.map { it.copy() }
+                            vectorSelectedDown = vectorDown
+                        }
+                        invalidate()
+                    }
+                    VectorTool.NODE -> {
+                        val obj = selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid == id } }
+                        if (obj != null && !isVectorLocked(obj, doc)) {
+                            vectorNodeIndex = obj.nodes.indices.minByOrNull { i ->
+                                val n = obj.nodes[i]; hypot(n.x - vectorDown.x, n.y - vectorDown.y)
+                            } ?: -1
+                            if (vectorNodeIndex >= 0 && hypot(obj.nodes[vectorNodeIndex].x - vectorDown.x, obj.nodes[vectorNodeIndex].y - vectorDown.y) > 5f) vectorNodeIndex = -1
+                        }
+                    }
+                    VectorTool.FREEHAND -> vectorDraft.add(vectorDown)
+                    else -> Unit
+                }
+                return true
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> { vectorDraft.clear(); return true }
+            MotionEvent.ACTION_MOVE -> {
+                val p = toVectorDoc(e.x, e.y, doc)
+                if (hypot(e.x - downX, e.y - downY) > dp(5f)) vectorDragging = true
+                when (vectorTool) {
+                    VectorTool.SELECT -> {
+                        val obj = selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid == id } }
+                        if (vectorDragging && obj != null && vectorOriginalNodes.isNotEmpty() && !isVectorLocked(obj, doc)) {
+                            val dx = p.x - vectorSelectedDown.x; val dy = p.y - vectorSelectedDown.y
+                            obj.nodes.forEachIndexed { i, n -> vectorOriginalNodes.getOrNull(i)?.let { n.x = it.x + dx; n.y = it.y + dy; n.ix = it.ix + dx; n.iy = it.iy + dy; n.ox = it.ox + dx; n.oy = it.oy + dy } }
+                            invalidate()
+                        }
+                    }
+                    VectorTool.NODE -> {
+                        val obj = selectedVectorUid?.let { id -> doc.objs.firstOrNull { it.uid == id } }
+                        if (vectorNodeIndex >= 0 && obj != null && !isVectorLocked(obj, doc)) {
+                            val n = obj.nodes[vectorNodeIndex]; val dx = p.x - n.x; val dy = p.y - n.y
+                            n.x = p.x; n.y = p.y
+                            if (n.smooth) { n.ix += dx; n.iy += dy; n.ox += dx; n.oy += dy }
+                            invalidate()
+                        }
+                    }
+                    VectorTool.FREEHAND -> { if (vectorDraft.isEmpty() || hypot(p.x - vectorDraft.last().x, p.y - vectorDraft.last().y) > 0.7f) vectorDraft.add(p); invalidate() }
+                    VectorTool.RECTANGLE, VectorTool.ELLIPSE, VectorTool.POLYGON -> { vectorDraft.clear(); vectorDraft.add(vectorDown); vectorDraft.add(p); invalidate() }
+                    else -> Unit
+                }
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                val p = toVectorDoc(e.x, e.y, doc)
+                when (vectorTool) {
+                    VectorTool.RECTANGLE, VectorTool.ELLIPSE, VectorTool.POLYGON -> if (vectorDragging) createVectorShape(doc, vectorTool, vectorDown, p)
+                    VectorTool.FREEHAND -> if (vectorDraft.size >= 2) createFreehand(doc)
+                    VectorTool.SELECT -> if (vectorDragging) onVectorChanged?.invoke()
+                    VectorTool.NODE -> if (vectorNodeIndex >= 0) onVectorChanged?.invoke()
+                    else -> Unit
+                }
+                vectorDraft.clear(); vectorOriginalNodes = emptyList(); vectorNodeIndex = -1
+                invalidate(); return true
+            }
+            MotionEvent.ACTION_CANCEL -> { vectorDraft.clear(); vectorOriginalNodes = emptyList(); vectorNodeIndex = -1; invalidate(); return true }
+        }
+        return true
+    }
+
+    private fun toVectorDoc(x: Float, y: Float, doc: Doc): Vec2 {
+        val p = toDesign(x, y)
+        return Vec2(p.x + doc.w / 2f, p.y + doc.h / 2f)
+    }
+
+    private fun isVectorLocked(obj: VObj, doc: Doc) = obj.locked || doc.layers.getOrNull(obj.layer)?.locked == true || doc.layers.getOrNull(obj.layer)?.visible == false
+
+    private fun hitVector(p: Vec2, doc: Doc): VObj? {
+        return doc.objs.asReversed().firstOrNull { obj ->
+            if (!obj.visible || isVectorLocked(obj, doc)) false else {
+                val b = RectF(); obj.path().computeBounds(b, true)
+                b.contains(p.x, p.y) || obj.nodes.any { hypot(it.x - p.x, it.y - p.y) < 4f }
+            }
+        }
+    }
+
+    private fun createVectorShape(doc: Doc, tool: VectorTool, a: Vec2, b: Vec2) {
+        val l = min(a.x, b.x); val r = max(a.x, b.x); val t = min(a.y, b.y); val bot = max(a.y, b.y)
+        if (r - l < 0.8f || bot - t < 0.8f) return
+        val nodes = when (tool) {
+            VectorTool.RECTANGLE -> mutableListOf(VectorNode(l,t), VectorNode(r,t), VectorNode(r,bot), VectorNode(l,bot))
+            VectorTool.ELLIPSE -> Geo.ellipse((l+r)/2f, (t+bot)/2f, (r-l)/2f, 0f, 0f, (bot-t)/2f)
+            else -> Geo.polygon((l+r)/2f, (t+bot)/2f, hypot(r-l, bot-t)/2f, -Math.PI.toFloat()/2f, 6)
+        }
+        addVectorObject(doc, nodes, tool != VectorTool.POLYGON, "${tool.name.lowercase().replaceFirstChar { it.uppercase() }} ${doc.objs.size + 1}")
+    }
+
+    private fun createFreehand(doc: Doc) {
+        val pts = vectorDraft.map { android.graphics.PointF(it.x, it.y) }
+        val simplified = Geo.rdp(pts, 0.45f)
+        if (simplified.size < 2) return
+        val nodes = Geo.smooth(simplified, false)
+        addVectorObject(doc, nodes, false, "Freehand ${doc.objs.size + 1}")
+    }
+
+    private fun addVectorObject(doc: Doc, nodes: MutableList<VectorNode>, closed: Boolean, name: String) {
+        val layer = doc.layers.indexOfLast { it.visible && !it.locked }
+        if (layer < 0) return
+        val obj = VObj(VectorKind.PATH).apply {
+            this.name = name; this.nodes = nodes; this.closed = closed
+            fill = if (closed) 0x332D8CFF else null; stroke = 0xFFFFC857.toInt(); strokeW = 0.45f; this.layer = layer
+            uid = (doc.objs.maxOfOrNull { it.uid } ?: 0) + 1
+        }
+        doc.objs.add(obj); selectedVectorUid = obj.uid; onVectorChanged?.invoke(); invalidate()
+    }
+
+    fun deleteSelectedVector(): Boolean {
+        val doc = vectorDocument ?: return false
+        val id = selectedVectorUid ?: return false
+        val obj = doc.objs.firstOrNull { it.uid == id } ?: return false
+        if (isVectorLocked(obj, doc)) return false
+        doc.objs.remove(obj); selectedVectorUid = null; onVectorChanged?.invoke(); invalidate(); return true
     }
 
     private fun centroidX(e: MotionEvent): Float { var s = 0f; for (i in 0 until e.pointerCount) s += e.getX(i); return s / e.pointerCount }

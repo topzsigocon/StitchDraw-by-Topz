@@ -1,15 +1,16 @@
-STITCHDRAW BY TOPZ — VEC DRAW WORKSPACE INTEGRATION PHASE 2
+StitchDraw by Topz — VecDraw Integration Phase 3
 
-Update package contents are laid out at repository root. Upload this ZIP to the ROOT of the private StitchDraw repository and push to main; the existing Unpack update.zip workflow expects a root-level ZIP and extracts its contents into the repository.
+Adds interactive vector tools to the existing embroidery canvas:
+- Select / Move
+- Node Edit
+- Drag-to-create Rectangle, Ellipse, and Hexagon
+- Freehand Pencil
+- Delete selected vector object
+- Convert selected vector object to Running or Tatami stitch
 
-Highlights:
-- Vector menu in the existing StitchDraw top bar.
-- Add vector rectangle / cubic Bézier ellipse.
-- Show/hide or clear vector artwork independently from embroidery stitches.
-- Convert latest vector path to Running or Tatami embroidery object. Source vector remains editable.
-- Vector artwork saved in .STD and included in Save, Save As, autosave, recovery and backup restore.
-- Existing StitchDraw keystore retained byte-for-byte.
+Vector artwork remains separate from embroidery objects and is retained after conversion.
+Changes to vector artwork trigger the existing project autosave path.
+No signing key or signing configuration was changed.
 
-Validation status: Gradle tests/build were attempted locally but could not start because services.gradle.org could not be resolved to download Gradle 8.14.3. Run GitHub Actions to confirm. Do not treat the package as CI-verified until Android CI passes.
-
-IMPORTANT: Keep this repository private. The fixed signing keystore and its credentials are sensitive. Keep an independent secure backup of the keystore.
+After extracting this update at the repository root, run the existing GitHub Actions Android build and tests. Build success is not pre-verified here.
+See docs/VEC_DRAW_INTEGRATION_PHASE_3.md for usage and current limitations.

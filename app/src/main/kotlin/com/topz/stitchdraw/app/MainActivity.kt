@@ -109,6 +109,10 @@ class MainActivity : Activity() {
 
         canvas = DesignCanvasView(this, session)
         canvas.vectorDocument = vectorDocument
+        canvas.onVectorChanged = {
+            if (::projectIO.isInitialized) projectIO.autosave(projectIO.makeProject(session.design, vectorDocument.toJson().toString()))
+            refreshPanels()
+        }
         canvas.stylusOnlyDrawing = workspace.layout.stylusOnlyDrawing
         canvas.callbacks = object : DesignCanvasView.Callbacks {
             override fun onObjectLongPress(objectId: Int, screenX: Int, screenY: Int) = showObjectMenu(objectId, screenX, screenY)
@@ -352,18 +356,30 @@ class MainActivity : Activity() {
     private fun showVectorMenu(anchor: View) {
         val menu = PopupMenu(this, anchor)
         menu.menu.add(0, 1, 1, if (canvas.showVectorArtwork) "Hide vector artwork" else "Show vector artwork")
-        menu.menu.add(0, 2, 2, "Add rectangle")
-        menu.menu.add(0, 3, 3, "Add ellipse")
-        menu.menu.add(0, 4, 4, "Convert last vector to Running stitch")
-        menu.menu.add(0, 5, 5, "Convert last vector to Tatami fill")
-        menu.menu.add(1, 6, 6, "Clear vector artwork…")
+        menu.menu.add(0, 2, 2, "Select / Move")
+        menu.menu.add(0, 3, 3, "Node Edit")
+        menu.menu.add(0, 4, 4, "Draw Rectangle")
+        menu.menu.add(0, 5, 5, "Draw Ellipse")
+        menu.menu.add(0, 7, 7, "Draw Hexagon")
+        menu.menu.add(0, 8, 8, "Freehand Pencil")
+        menu.menu.add(0, 9, 9, "Stop Vector Tool")
+        menu.menu.add(1, 10, 10, "Delete selected vector")
+        menu.menu.add(2, 11, 11, "Convert selected vector to Running stitch")
+        menu.menu.add(2, 12, 12, "Convert selected vector to Tatami fill")
+        menu.menu.add(3, 6, 6, "Clear vector artwork…")
         menu.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> canvas.showVectorArtwork = !canvas.showVectorArtwork
-                2 -> addVectorShape(false)
-                3 -> addVectorShape(true)
-                4 -> convertLastVector(StitchType.RUNNING)
-                5 -> convertLastVector(StitchType.TATAMI)
+                2 -> canvas.vectorTool = DesignCanvasView.VectorTool.SELECT
+                3 -> canvas.vectorTool = DesignCanvasView.VectorTool.NODE
+                4 -> canvas.vectorTool = DesignCanvasView.VectorTool.RECTANGLE
+                5 -> canvas.vectorTool = DesignCanvasView.VectorTool.ELLIPSE
+                7 -> canvas.vectorTool = DesignCanvasView.VectorTool.POLYGON
+                8 -> canvas.vectorTool = DesignCanvasView.VectorTool.FREEHAND
+                9 -> canvas.vectorTool = DesignCanvasView.VectorTool.OFF
+                10 -> if (!canvas.deleteSelectedVector()) toast("Select an unlocked vector object first.")
+                11 -> convertSelectedVector(StitchType.RUNNING)
+                12 -> convertSelectedVector(StitchType.TATAMI)
                 6 -> android.app.AlertDialog.Builder(this).setTitle("Clear vector artwork?")
                     .setMessage("This removes the vector objects from the current project. Existing embroidery stitches are not affected.")
                     .setNegativeButton("Cancel", null).setPositiveButton("Clear") { _, _ ->
@@ -402,8 +418,8 @@ class MainActivity : Activity() {
         toast("Added ${if (ellipse) "ellipse" else "rectangle"}. Vector artwork remains editable.")
     }
 
-    private fun convertLastVector(type: StitchType) {
-        val source = vectorDocument.objs.lastOrNull { it.uid == lastVectorUid }
+    private fun convertSelectedVector(type: StitchType) {
+        val source = canvas.selectedVectorUid?.let { id -> vectorDocument.objs.firstOrNull { it.uid == id } }
             ?: vectorDocument.objs.lastOrNull()
         if (source == null) { toast("Add a vector shape first."); return }
         if (vectorDocument.layers.getOrNull(source.layer)?.locked == true) { toast("The source vector layer is locked."); return }
@@ -421,7 +437,7 @@ class MainActivity : Activity() {
         if (embroidery == null) { toast(conversion.warnings.joinToString(" ")); return }
         session.addExternalObject(embroidery)
         val warning = conversion.warnings.firstOrNull()
-        toast(if (warning == null) "Converted to ${type.label}. Original vector retained." else "Converted. $warning")
+        toast(if (warning == null) "Converted selected vector to ${type.label}. Original vector retained." else "Converted. $warning")
         refreshPanels()
     }
 
@@ -501,9 +517,9 @@ class MainActivity : Activity() {
             QuickCommand.CANCEL_OBJECT -> session.cancelPending()
             QuickCommand.ZOOM_FIT -> canvas.fitDesign()
             QuickCommand.TOGGLE_GRID -> { canvas.showGrid = !canvas.showGrid; canvas.invalidate() }
-            QuickCommand.TOOL_SELECT -> session.selectTool(DigitizingTool.SELECT)
-            QuickCommand.TOOL_RUNNING -> session.selectTool(DigitizingTool.RUNNING)
-            QuickCommand.TOOL_TRIPLE -> session.selectTool(DigitizingTool.TRIPLE_RUNNING)
+            QuickCommand.TOOL_SELECT -> { canvas.vectorTool = DesignCanvasView.VectorTool.OFF; session.selectTool(DigitizingTool.SELECT) }
+            QuickCommand.TOOL_RUNNING -> { canvas.vectorTool = DesignCanvasView.VectorTool.OFF; session.selectTool(DigitizingTool.RUNNING) }
+            QuickCommand.TOOL_TRIPLE -> { canvas.vectorTool = DesignCanvasView.VectorTool.OFF; session.selectTool(DigitizingTool.TRIPLE_RUNNING) }
             QuickCommand.EXIT_FOCUS -> workspace.dispatch(WorkspaceAction.SetFocus(false))
             QuickCommand.PANELS_MENU ->
                 if (workspace.layout.style == com.topz.stitchdraw.workspace.LayoutStyle.MENU) menuSheet.show()
