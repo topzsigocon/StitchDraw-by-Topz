@@ -7,7 +7,14 @@ import java.text.DateFormat
 import java.util.Date
 
 /** Lists saved backups (all projects, newest first) and restores the one the user picks. */
-class RestoreDialog(private val activity: Activity, private val session: DigitizingSession, private val io: ProjectIO, private val toast: (String) -> Unit) {
+class RestoreDialog(
+    private val activity: Activity,
+    private val session: DigitizingSession,
+    private val io: ProjectIO,
+    private val toast: (String) -> Unit,
+    private val getVectorArt: () -> String?,
+    private val setVectorArt: (String?) -> Unit,
+) {
 
     fun show() {
         val all = io.backups()
@@ -30,10 +37,10 @@ class RestoreDialog(private val activity: Activity, private val session: Digitiz
             .setNegativeButton("Cancel", null)
             .setNeutralButton("Delete this backup") { _, _ -> io.deleteBackup(file); toast("Backup deleted") }
             .setPositiveButton("Restore") { _, _ ->
-                io.autosave(io.makeProject(session.design))                 // keep what is on screen recoverable
+                io.autosave(io.makeProject(session.design, getVectorArt()))                 // keep what is on screen recoverable
                 val p = io.restoreBackup(file)
                 if (p == null) toast("That backup could not be opened")
-                else { session.load(p.design); toast("Restored. Use File > Save As to keep it.") }
+                else { session.load(p.design); setVectorArt(p.vectorArtJson); toast("Restored. Use File > Save As to keep it.") }
             }.show()
     }
 }

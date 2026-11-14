@@ -1,5 +1,8 @@
 package com.topz.stitchdraw.app
 
+import com.topz.stitchdraw.vectorart.Doc
+import com.topz.stitchdraw.vectorart.Render as VectorRender
+
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -48,6 +51,12 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
 
     private val renderer = DesignRenderer()
     private val simRenderer = ThreadSimRenderer()
+
+    /** Optional editable VecDraw document rendered in the same millimetre coordinate space. */
+    var vectorDocument: Doc? = null
+        set(value) { field = value; invalidate() }
+    var showVectorArtwork: Boolean = true
+        set(value) { field = value; invalidate() }
 
     /** Non-null while the simulator is open: the canvas shows the sewn result up to the playback position. */
     var playback: Playback? = null
@@ -159,6 +168,12 @@ class DesignCanvasView(context: Context, private val session: DigitizingSession)
             hoopPaint.strokeWidth = 2f / scale
             canvas.drawRect(-d.hoop.widthMm / 2f, -d.hoop.heightMm / 2f, d.hoop.widthMm / 2f, d.hoop.heightMm / 2f, hoopPaint)
             canvas.drawLine(-3f, 0f, 3f, 0f, hoopPaint); canvas.drawLine(0f, -3f, 0f, 3f, hoopPaint)
+        }
+        if (showVectorArtwork) vectorDocument?.let { doc ->
+            canvas.save()
+            canvas.translate(-doc.w / 2f, -doc.h / 2f)
+            VectorRender.drawAll(canvas, doc)
+            canvas.restore()
         }
         val pb = playback
         if (pb != null) {

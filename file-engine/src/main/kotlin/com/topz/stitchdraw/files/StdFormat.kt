@@ -25,6 +25,8 @@ data class StdProject(
     val design: EmbroideryDesign,
     val createdMs: Long = 0L,
     val modifiedMs: Long = 0L,
+    /** Optional VecDraw-compatible vector document JSON; kept opaque so this JVM module stays Android-free. */
+    val vectorArtJson: String? = null,
 )
 
 /**
@@ -101,6 +103,7 @@ object StdFormat {
             "name" to p.name,
             "created" to p.createdMs,
             "modified" to p.modifiedMs,
+            "vectorArt" to p.vectorArtJson,
             "hoop" to mapOf("w" to d.hoop.widthMm, "h" to d.hoop.heightMm, "name" to d.hoop.name),
             "threads" to d.threads.map { mapOf("rgb" to it.rgb, "name" to it.name, "brand" to it.brand) },
             "layers" to d.layers.map { mapOf("id" to it.id, "name" to it.name, "visible" to it.visible, "locked" to it.locked) },
@@ -176,6 +179,6 @@ object StdFormat {
             nextObjectId = maxOf(r["nextObjectId"].asInt(1), (objects.maxOfOrNull { it.id } ?: 0) + 1),
             nextLayerId = maxOf(r["nextLayerId"].asInt(2), (layers.maxOfOrNull { it.id } ?: 0) + 1),
         )
-        return StdProject(r["name"].asString("Untitled"), design, r["created"].asDouble().toLong(), r["modified"].asDouble().toLong())
+        return StdProject(r["name"].asString("Untitled"), design, r["created"].asDouble().toLong(), r["modified"].asDouble().toLong(), r["vectorArt"].asString().takeIf { it.isNotBlank() })
     }
 }

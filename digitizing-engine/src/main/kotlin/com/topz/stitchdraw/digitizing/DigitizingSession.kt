@@ -207,6 +207,16 @@ class DigitizingSession(initial: EmbroideryDesign = EmbroideryDesign()) {
     fun select(id: Int?) { if (selectedObjectId != id) { selectedObjectId = id; changed() } }
 
     /** Object whose path is nearest to [p] within [toleranceMm], topmost first. */
+    /** Adds a fully prepared object produced by an external editor/conversion adapter. */
+    fun addExternalObject(objectToAdd: DesignObject): DesignObject {
+        val id = if (design.obj(objectToAdd.id) == null && objectToAdd.id >= design.nextObjectId) objectToAdd.id else design.nextObjectId
+        val committed = objectToAdd.copy(id = id)
+        commit(design.addObject(committed))
+        selectedObjectId = committed.id
+        changed()
+        return committed
+    }
+
     fun hitTest(p: Vec2, toleranceMm: Float): DesignObject? =
         design.objects.asReversed().firstOrNull { o ->
             design.layers.firstOrNull { it.id == o.layerId }?.visible != false &&

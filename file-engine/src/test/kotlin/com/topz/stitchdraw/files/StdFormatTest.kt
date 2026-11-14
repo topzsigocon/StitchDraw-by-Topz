@@ -21,6 +21,13 @@ class StdFormatTest {
         assertEquals("Test", back.name)
     }
 
+    @Test fun vectorDocumentPayloadSurvivesNativeProjectRoundTrip() {
+        val json = """{"app":"VecDraw by Topz","v":1,"w":100,"h":100,"objs":[{"k":"PATH","n":[] }]}"""
+        val p = sample().copy(vectorArtJson = json)
+        val back = StdFormat.decode(StdFormat.encode(p))
+        assertEquals(json, back.vectorArtJson)
+    }
+
     @Test fun stitchDataIsStoredAndRegeneratesIdentically() {
         val p = sample()
         val a = StitchPlanner.plan(p.design)

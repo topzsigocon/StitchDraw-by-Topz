@@ -1,5 +1,14 @@
 package com.topz.stitchdraw.app
 
+import com.topz.stitchdraw.vectorart.Doc
+import com.topz.stitchdraw.vectorart.Kind as VectorKind
+import com.topz.stitchdraw.vectorart.Node as VectorNode
+import com.topz.stitchdraw.vectorart.VObj
+import com.topz.stitchdraw.vectorart.VectorStitchAdapter
+import com.topz.stitchdraw.embroidery.StitchParams
+import com.topz.stitchdraw.embroidery.StitchType
+import android.graphics.Matrix
+
 import android.app.Activity
 import android.os.Build
 import android.os.Bundle
@@ -12,7 +21,6 @@ import android.widget.PopupMenu
 import android.widget.Toast
 import com.topz.stitchdraw.digitizing.DigitizingSession
 import com.topz.stitchdraw.digitizing.DigitizingTool
-import com.topz.stitchdraw.embroidery.StitchType
 import com.topz.stitchdraw.workspace.CanvasViewState
 import com.topz.stitchdraw.workspace.ContextMenus
 import com.topz.stitchdraw.workspace.MenuCommand
@@ -58,6 +66,8 @@ class MainActivity : Activity() {
     private val frames = LinkedHashMap<PanelId, PanelFrame>()
     private val contents = HashMap<PanelId, PanelContent>()
     private var topBarState: List<Any> = emptyList()
+    private lateinit var vectorDocument: Doc
+    private var lastVectorUid: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,15 +87,28 @@ class MainActivity : Activity() {
         }
 
         projectIO = ProjectIO(this)
+        vectorDocument = Doc().apply { w = session.design.hoop.widthMm; h = session.design.hoop.heightMm }
         imageImport = ImageImport(this, session, ::toast)
         textTool = TextTool(this, session, ::toast)
         transformDialog = TransformDialog(this, session, ::toast)
-        restoreDialog = RestoreDialog(this, session, projectIO, ::toast)
+        restoreDialog = RestoreDialog(
+            this, session, projectIO, ::toast,
+            getVectorArt = { vectorDocument.toJson().toString() },
+            setVectorArt = { json ->
+                vectorDocument = json?.let { runCatching { Doc.fromJson(org.json.JSONObject(it)) }.getOrNull() }
+                    ?: Doc().apply { w = session.design.hoop.widthMm; h = session.design.hoop.heightMm }
+                if (::canvas.isInitialized) canvas.vectorDocument = vectorDocument
+            },
+        )
         if (savedInstanceState == null && projectIO.hasAutosave()) {
-            projectIO.openAutosave()?.let { session.load(it.design) }   // restore work after a crash/kill
+            projectIO.openAutosave()?.let { recovered ->
+                session.load(recovered.design)
+                recovered.vectorArtJson?.let { json -> runCatching { vectorDocument = Doc.fromJson(org.json.JSONObject(json)) } }
+            }   // restore work after a crash/kill
         }
 
         canvas = DesignCanvasView(this, session)
+        canvas.vectorDocument = vectorDocument
         canvas.stylusOnlyDrawing = workspace.layout.stylusOnlyDrawing
         canvas.callbacks = object : DesignCanvasView.Callbacks {
             override fun onObjectLongPress(objectId: Int, screenX: Int, screenY: Int) = showObjectMenu(objectId, screenX, screenY)
@@ -153,7 +176,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         try { workspace.save(storage) } catch (e: Exception) { /* best effort */ }
         simBar.onPause()
-        projectIO.autosave(projectIO.makeProject(session.design))
+        projectIO.autosave(projectIO.makeProject(session.design, vectorDocument.toJson().toString()))
         super.onPause()
     }
 
@@ -220,6 +243,9 @@ class MainActivity : Activity() {
         redoBtn = glyph("↷", Theme.ACCENT) { session.redo() }
         finishBtn = glyph("✔", Theme.OK) { session.finishObject() }
         cancelBtn = glyph("✖", Theme.DANGER) { session.cancelPending() }
+        val vectorBtn = textButton("Vector ▾", Theme.PURPLE) {}
+        vectorBtn.setOnClickListener { showVectorMenu(vectorBtn) }
+        row.addView(vectorBtn); gap()
         glyph("⤢", Theme.WARN) { canvas.fitDesign() }
         glyph("⛶", Theme.PURPLE) { workspace.dispatch(WorkspaceAction.SetFocus(true)) }   // FULL SCREEN / FOCUS MODE
         val settings = glyphButton("⚙", Theme.TEXT_DIM, s) {}
@@ -261,10 +287,15 @@ class MainActivity : Activity() {
         m.menu.add(1, 15, 15, "About / Diagnostics…")
         m.setOnMenuItemClickListener {
             when (it.itemId) {
-                0 -> { session.load(com.topz.stitchdraw.embroidery.EmbroideryDesign()); projectIO.newProject() }
+                0 -> {
+                    val fresh = com.topz.stitchdraw.embroidery.EmbroideryDesign()
+                    session.load(fresh); projectIO.newProject()
+                    vectorDocument = Doc().apply { w = fresh.hoop.widthMm; h = fresh.hoop.heightMm }
+                    canvas.vectorDocument = vectorDocument; lastVectorUid = 0
+                }
                 1 -> projectIO.launchOpen()
                 2 -> try {
-                    if (projectIO.save(projectIO.makeProject(session.design))) toast("Saved") else projectIO.launchSaveAs()
+                    if (projectIO.save(projectIO.makeProject(session.design, vectorDocument.toJson().toString()))) toast("Saved") else projectIO.launchSaveAs()
                 } catch (e: Exception) { toast("Save failed: ${e.message}") }
                 3 -> projectIO.launchSaveAs()
                 11 -> imageImport.launchPicker()
@@ -306,10 +337,92 @@ class MainActivity : Activity() {
             return
         }
         try {
-            val opened = projectIO.onResult(requestCode, uri, projectIO.makeProject(session.design))
-            if (opened != null) session.load(opened.design) else if (requestCode == ProjectIO.REQ_SAVE_AS) toast("Saved")
+            val opened = projectIO.onResult(requestCode, uri, projectIO.makeProject(session.design, vectorDocument.toJson().toString()))
+            if (opened != null) {
+                session.load(opened.design)
+                vectorDocument = opened.vectorArtJson?.let { runCatching { Doc.fromJson(org.json.JSONObject(it)) }.getOrNull() }
+                    ?: Doc().apply { w = opened.design.hoop.widthMm; h = opened.design.hoop.heightMm }
+                canvas.vectorDocument = vectorDocument
+                canvas.invalidate()
+            } else if (requestCode == ProjectIO.REQ_SAVE_AS) toast("Saved")
         } catch (e: StdFormatException) { toast(e.message ?: "Invalid project file")
         } catch (e: Exception) { toast("File error: ${e.message}") }
+    }
+
+    private fun showVectorMenu(anchor: View) {
+        val menu = PopupMenu(this, anchor)
+        menu.menu.add(0, 1, 1, if (canvas.showVectorArtwork) "Hide vector artwork" else "Show vector artwork")
+        menu.menu.add(0, 2, 2, "Add rectangle")
+        menu.menu.add(0, 3, 3, "Add ellipse")
+        menu.menu.add(0, 4, 4, "Convert last vector to Running stitch")
+        menu.menu.add(0, 5, 5, "Convert last vector to Tatami fill")
+        menu.menu.add(1, 6, 6, "Clear vector artwork…")
+        menu.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> canvas.showVectorArtwork = !canvas.showVectorArtwork
+                2 -> addVectorShape(false)
+                3 -> addVectorShape(true)
+                4 -> convertLastVector(StitchType.RUNNING)
+                5 -> convertLastVector(StitchType.TATAMI)
+                6 -> android.app.AlertDialog.Builder(this).setTitle("Clear vector artwork?")
+                    .setMessage("This removes the vector objects from the current project. Existing embroidery stitches are not affected.")
+                    .setNegativeButton("Cancel", null).setPositiveButton("Clear") { _, _ ->
+                        vectorDocument.objs.clear(); lastVectorUid = 0; canvas.invalidate(); refreshPanels()
+                    }.show()
+            }
+            true
+        }
+        menu.show()
+    }
+
+    private fun addVectorShape(ellipse: Boolean) {
+        val w = vectorDocument.w; val h = vectorDocument.h
+        val left = w * 0.30f; val right = w * 0.70f
+        val top = h * 0.30f; val bottom = h * 0.70f
+        val obj = VObj(VectorKind.PATH).apply {
+            name = if (ellipse) "Vector Ellipse ${vectorDocument.objs.size + 1}" else "Vector Rectangle ${vectorDocument.objs.size + 1}"
+            closed = true; fill = 0xFF2D8CFF.toInt(); stroke = 0xFFFFC857.toInt(); strokeW = 0.45f
+            if (!ellipse) nodes = mutableListOf(
+                VectorNode(left, top), VectorNode(right, top), VectorNode(right, bottom), VectorNode(left, bottom)
+            ) else {
+                val cx = (left + right) / 2f; val cy = (top + bottom) / 2f
+                val rx = (right - left) / 2f; val ry = (bottom - top) / 2f
+                val k = 0.55228475f
+                nodes = mutableListOf(
+                    VectorNode(cx, top).apply { ix = cx - rx * k; iy = top; ox = cx + rx * k; oy = top },
+                    VectorNode(right, cy).apply { ix = right; iy = cy - ry * k; ox = right; oy = cy + ry * k },
+                    VectorNode(cx, bottom).apply { ix = cx + rx * k; iy = bottom; ox = cx - rx * k; oy = bottom },
+                    VectorNode(left, cy).apply { ix = left; iy = cy + ry * k; ox = left; oy = cy - ry * k },
+                )
+            }
+            uid = (vectorDocument.objs.maxOfOrNull { it.uid } ?: 0) + 1
+        }
+        vectorDocument.objs.add(obj); lastVectorUid = obj.uid
+        canvas.showVectorArtwork = true; canvas.invalidate(); refreshPanels()
+        toast("Added ${if (ellipse) "ellipse" else "rectangle"}. Vector artwork remains editable.")
+    }
+
+    private fun convertLastVector(type: StitchType) {
+        val source = vectorDocument.objs.lastOrNull { it.uid == lastVectorUid }
+            ?: vectorDocument.objs.lastOrNull()
+        if (source == null) { toast("Add a vector shape first."); return }
+        if (vectorDocument.layers.getOrNull(source.layer)?.locked == true) { toast("The source vector layer is locked."); return }
+        val centered = source.copy()
+        val matrix = Matrix().apply { setTranslate(-vectorDocument.w / 2f, -vectorDocument.h / 2f) }
+        centered.transform(matrix)
+        val targetLayer = session.design.layers.firstOrNull { !it.locked }
+        if (targetLayer == null) { toast("Unlock an embroidery layer before converting vector artwork."); return }
+        val conversion = VectorStitchAdapter.convertPath(
+            centered, session.design.nextObjectId,
+            targetLayer.id,
+            session.activeThread, type, StitchParams(),
+        )
+        val embroidery = conversion.embroideryObject
+        if (embroidery == null) { toast(conversion.warnings.joinToString(" ")); return }
+        session.addExternalObject(embroidery)
+        val warning = conversion.warnings.firstOrNull()
+        toast(if (warning == null) "Converted to ${type.label}. Original vector retained." else "Converted. $warning")
+        refreshPanels()
     }
 
     private fun showPresetMenu(anchor: View) {

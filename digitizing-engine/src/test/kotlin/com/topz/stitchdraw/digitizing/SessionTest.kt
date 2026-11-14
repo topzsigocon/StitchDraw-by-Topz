@@ -1,6 +1,8 @@
 package com.topz.stitchdraw.digitizing
 
 import com.topz.stitchdraw.embroidery.StitchType
+import com.topz.stitchdraw.embroidery.DesignObject
+import com.topz.stitchdraw.embroidery.StitchParams
 import com.topz.stitchdraw.vector.Vec2
 import com.topz.stitchdraw.workspace.*
 import org.junit.Assert.*
@@ -36,6 +38,22 @@ class SessionTest {
         s.finishObject(); assertEquals(1, s.design.objects.size)
         s.undo(); assertEquals(0, s.design.objects.size)
         s.redo(); assertEquals(1, s.design.objects.size)
+    }
+
+    @Test fun externallyConvertedVectorObjectUsesNormalUndoRedoHistory() {
+        val s = DigitizingSession()
+        val converted = DesignObject(
+            id = s.design.nextObjectId, name = "Vector ellipse", type = StitchType.RUNNING,
+            path = listOf(Vec2(-10f, 0f), Vec2(10f, 0f)), threadIndex = 0,
+            layerId = s.design.layers.first().id, params = StitchParams(),
+        )
+        val added = s.addExternalObject(converted)
+        assertEquals("Vector ellipse", s.design.obj(added.id)?.name)
+        assertEquals(1, s.design.objects.size)
+        s.undo()
+        assertTrue(s.design.objects.isEmpty())
+        s.redo()
+        assertEquals("Vector ellipse", s.design.objects.single().name)
     }
 
     @Test fun editOperations() {

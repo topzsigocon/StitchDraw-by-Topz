@@ -135,5 +135,6 @@ class ProjectIO(private val activity: Activity) {
         return "${enc.formatName}: ${bytes.size} bytes, ${plan.stats.stitchCount} stitches, ${plan.stats.colorChanges + 1} colours"
     }
 
-    fun makeProject(design: com.topz.stitchdraw.embroidery.EmbroideryDesign) = StdProject(name, design)
+    fun makeProject(design: com.topz.stitchdraw.embroidery.EmbroideryDesign, vectorArtJson: String? = null) =
+        StdProject(name, design, vectorArtJson = vectorArtJson)
 }
